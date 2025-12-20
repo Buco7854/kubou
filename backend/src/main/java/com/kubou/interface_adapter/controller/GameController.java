@@ -93,6 +93,9 @@ public class GameController {
 
     @MessageMapping("/game/{gameId}/start")
     public void startGame(@DestinationVariable String gameId, Principal principal) {
+        if (principal == null) {
+            throw new IllegalStateException("L'utilisateur doit être authentifié pour démarrer une partie.");
+        }
         GameSession session = startGameUseCase.execute(gameId, principal.getName());
         messagingTemplate.convertAndSend("/topic/game/" + gameId + "/started", "Game Started!");
         sendQuestion(session);
@@ -100,6 +103,9 @@ public class GameController {
 
     @MessageMapping("/game/{gameId}/next")
     public void nextQuestion(@DestinationVariable String gameId, Principal principal) {
+        if (principal == null) {
+            throw new IllegalStateException("L'utilisateur doit être authentifié pour passer à la question suivante.");
+        }
         GameSession session = nextQuestionUseCase.execute(gameId, principal.getName());
         if (session.getState() == GameState.FINISHED) {
             messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Game Over!");
@@ -110,6 +116,9 @@ public class GameController {
 
     @MessageMapping("/game/{gameId}/submit")
     public void submitAnswer(@DestinationVariable String gameId, @Payload SubmitAnswerRequest request, Principal principal) {
+        if (principal == null) {
+            throw new IllegalStateException("L'utilisateur doit être authentifié pour soumettre une réponse.");
+        }
         UserAnswer userAnswer = new UserAnswer(principal.getName(), request.getQuestionId(), request.getAnswerIndex(), request.getTimeToAnswerMs());
         int score = submitAnswerUseCase.execute(gameId, userAnswer);
 

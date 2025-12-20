@@ -35,32 +35,39 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
 
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String bearerToken = accessor.getFirstNativeHeader("Authorization");
+            
             if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
                 String jwt = bearerToken.substring(7);
-                if (StringUtils.hasText(jwt) && tokenProvider.validateToken(jwt)) {
+                
+                if (tokenProvider.validateToken(jwt)) {
                     String username = tokenProvider.getUsernameFromJWT(jwt);
-                    String nickname = tokenProvider.getNicknameFromJWT(jwt);
+                    // Retrieve nickname, or default to username if null (case for Admins/Registered Users)
+                    String jwtNickname = tokenProvider.getNicknameFromJWT(jwt);
+                    String nickname = (jwtNickname != null) ? jwtNickname : username;
 
-                    UserDetails userDetails;
                     try {
-                        userDetails = userDetailsService.loadUserByUsername(username);
-                    } catch (Exception e) {
-                        logger.error("Failed to load user details for username: {}", username, e);
-                        return message;
-                    }
-                    
-                    Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-                    if (sessionAttributes != null) {
-                        sessionAttributes.put("nickname", nickname);
-                    }
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            username, 
-                            null, 
-                            userDetails.getAuthorities()
-                    );
-                    accessor.setUser(authentication);
-                    logger.info("Successfully authenticated WebSocket connection for user: {}", username);
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                username,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        
+                        accessor.setUser(authentication);
+                        
+                        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+                        if (sessionAttributes != null) {
+                            // FIX: Ensure nickname is never null before putting into ConcurrentHashMap
+                            sessionAttributes.put("nickname", nickname);
+                        }
+                        
+                        logger.info("WebSocket Auth Success: User={}, Nickname={}", username, nickname);
+
+                    } catch (Exception e) {
+                        logger.error("WebSocket User Loading Error for {}", username, e);
+                        return null; // Reject connection on error
+                    }
                 }
             }
         }
