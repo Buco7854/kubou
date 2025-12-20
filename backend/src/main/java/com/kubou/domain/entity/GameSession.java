@@ -7,10 +7,15 @@ public class GameSession {
     private String id;
     private String pin;
     private String quizId;
-    private String hostId; // Added host identifier
+    private String hostId;
     private List<Player> players;
     private int currentQuestionIndex;
     private GameState state;
+    private GameConfig gameConfig;
+    
+    // Team Mode Support
+    private boolean isTeamMode;
+    private List<Team> teams;
 
     public GameSession(String id, String pin, String quizId, String hostId) {
         this.id = id;
@@ -18,8 +23,11 @@ public class GameSession {
         this.quizId = quizId;
         this.hostId = hostId;
         this.players = new ArrayList<>();
-        this.currentQuestionIndex = -1; // -1 indicates game has not started
+        this.currentQuestionIndex = -1;
         this.state = GameState.LOBBY;
+        this.gameConfig = new GameConfig();
+        this.isTeamMode = false;
+        this.teams = new ArrayList<>();
     }
 
     // Getters and Setters
@@ -37,6 +45,13 @@ public class GameSession {
     public void setCurrentQuestionIndex(int currentQuestionIndex) { this.currentQuestionIndex = currentQuestionIndex; }
     public GameState getState() { return state; }
     public void setState(GameState state) { this.state = state; }
+    public GameConfig getGameConfig() { return gameConfig; }
+    public void setGameConfig(GameConfig gameConfig) { this.gameConfig = gameConfig; }
+    
+    public boolean isTeamMode() { return isTeamMode; }
+    public void setTeamMode(boolean teamMode) { isTeamMode = teamMode; }
+    public List<Team> getTeams() { return teams; }
+    public void setTeams(List<Team> teams) { this.teams = teams; }
 
     public void addPlayer(Player player) {
         this.players.add(player);

@@ -1,6 +1,7 @@
 package com.kubou.application.usecase;
 
 import com.kubou.application.repository.GameSessionRepository;
+import com.kubou.application.service.TeamService;
 import com.kubou.domain.entity.GameSession;
 import com.kubou.domain.entity.GameState;
 import org.springframework.stereotype.Service;
@@ -10,9 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class StartGameUseCase {
 
     private final GameSessionRepository gameSessionRepository;
+    private final TeamService teamService;
 
-    public StartGameUseCase(GameSessionRepository gameSessionRepository) {
+    public StartGameUseCase(GameSessionRepository gameSessionRepository, TeamService teamService) {
         this.gameSessionRepository = gameSessionRepository;
+        this.teamService = teamService;
     }
 
     @Transactional
@@ -26,6 +29,12 @@ public class StartGameUseCase {
 
         if (session.getState() != GameState.LOBBY) {
             throw new IllegalStateException("Game has already started or finished.");
+        }
+        
+        // Assign teams if team mode is enabled
+        if (session.isTeamMode()) {
+            teamService.assignTeams(session);
+            teamService.balanceTeams(session);
         }
 
         session.setState(GameState.IN_PROGRESS);

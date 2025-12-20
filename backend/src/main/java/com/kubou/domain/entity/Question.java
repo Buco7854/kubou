@@ -9,6 +9,10 @@ public class Question {
     private int correctAnswerIndex;
     private List<String> tags;
     private int difficultyLevel;
+    private String creatorId; // Added creatorId
+
+    public Question() {
+    }
 
     public Question(String id, String text, List<String> options, int correctAnswerIndex, List<String> tags, int difficultyLevel) {
         this.id = id;
@@ -17,6 +21,16 @@ public class Question {
         this.correctAnswerIndex = correctAnswerIndex;
         this.tags = tags;
         this.difficultyLevel = difficultyLevel;
+    }
+
+    public Question(String id, String text, List<String> options, int correctAnswerIndex, List<String> tags, int difficultyLevel, String creatorId) {
+        this.id = id;
+        this.text = text;
+        this.options = options;
+        this.correctAnswerIndex = correctAnswerIndex;
+        this.tags = tags;
+        this.difficultyLevel = difficultyLevel;
+        this.creatorId = creatorId;
     }
 
     // Getters and Setters
@@ -67,5 +81,13 @@ public class Question {
 
     public void setDifficultyLevel(int difficultyLevel) {
         this.difficultyLevel = difficultyLevel;
+    }
+
+    public String getCreatorId() {
+        return creatorId;
+    }
+
+    public void setCreatorId(String creatorId) {
+        this.creatorId = creatorId;
     }
 }

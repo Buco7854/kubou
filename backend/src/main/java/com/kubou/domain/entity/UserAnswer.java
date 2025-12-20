@@ -4,13 +4,13 @@ public class UserAnswer {
     private String playerId;
     private String questionId;
     private int answerIndex;
-    private long timeElapsedMs;
+    private long timeToAnswerMs;
 
-    public UserAnswer(String playerId, String questionId, int answerIndex, long timeElapsedMs) {
+    public UserAnswer(String playerId, String questionId, int answerIndex, long timeToAnswerMs) {
         this.playerId = playerId;
         this.questionId = questionId;
         this.answerIndex = answerIndex;
-        this.timeElapsedMs = timeElapsedMs;
+        this.timeToAnswerMs = timeToAnswerMs;
     }
 
     // Getters and Setters
@@ -39,11 +39,11 @@ public class UserAnswer {
         this.answerIndex = answerIndex;
     }
 
-    public long getTimeElapsedMs() {
-        return timeElapsedMs;
+    public long getTimeToAnswerMs() {
+        return timeToAnswerMs;
     }
 
-    public void setTimeElapsedMs(long timeElapsedMs) {
-        this.timeElapsedMs = timeElapsedMs;
+    public void setTimeToAnswerMs(long timeToAnswerMs) {
+        this.timeToAnswerMs = timeToAnswerMs;
     }
 }

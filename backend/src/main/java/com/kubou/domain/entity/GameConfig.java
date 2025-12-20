@@ -1,5 +1,21 @@
 package com.kubou.domain.entity;
 
 public class GameConfig {
-    // For future use, e.g., time limits, scoring weights, etc.
+    private ScoringSettings scoringSettings;
+
+    public GameConfig() {
+        this.scoringSettings = new ScoringSettings();
+    }
+
+    public GameConfig(ScoringSettings scoringSettings) {
+        this.scoringSettings = scoringSettings;
+    }
+
+    public ScoringSettings getScoringSettings() {
+        return scoringSettings;
+    }
+
+    public void setScoringSettings(ScoringSettings scoringSettings) {
+        this.scoringSettings = scoringSettings;
+    }
 }

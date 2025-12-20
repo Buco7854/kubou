@@ -26,22 +26,22 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     @Override
     @Transactional
     public Question save(Question question) {
-        QuestionData questionData = quizMapper.toData(question);
+        QuestionData questionData = quizMapper.toQuestionData(question);
         QuestionData savedData = questionJpaRepository.save(questionData);
-        return quizMapper.toDomain(savedData);
+        return quizMapper.toQuestionDomain(savedData);
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<Question> findById(String id) {
-        return questionJpaRepository.findById(id).map(quizMapper::toDomain);
+        return questionJpaRepository.findById(id).map(quizMapper::toQuestionDomain);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<Question> findAll() {
         return questionJpaRepository.findAll().stream()
-                .map(quizMapper::toDomain)
+                .map(quizMapper::toQuestionDomain)
                 .collect(Collectors.toList());
     }
 
@@ -49,7 +49,15 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     @Transactional(readOnly = true)
     public List<Question> findAllById(List<String> ids) {
         return questionJpaRepository.findAllById(ids).stream()
-                .map(quizMapper::toDomain)
+                .map(quizMapper::toQuestionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Question> findByCreatorId(String creatorId) {
+        return questionJpaRepository.findByCreatorId(creatorId).stream()
+                .map(quizMapper::toQuestionDomain)
                 .collect(Collectors.toList());
     }
 }

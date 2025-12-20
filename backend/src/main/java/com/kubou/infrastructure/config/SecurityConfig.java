@@ -1,5 +1,6 @@
 package com.kubou.infrastructure.config;
 
+import com.kubou.infrastructure.security.CustomUserDetailsService;
 import com.kubou.infrastructure.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,19 +9,14 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    // Removed constructor injection to break the circular dependency
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
@@ -29,10 +25,17 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
+                // Allow fetching game by PIN without authentication (or with guest auth which is handled by filter)
+                // Actually, the frontend sends the token if available.
+                // If the user is not logged in (e.g. just entering PIN on home page), they don't have a token yet.
+                // We should probably allow this endpoint to be accessed publicly so the frontend can validate the PIN
+                // and then prompt for login/guest nickname if needed, OR the frontend should do guest login FIRST.
+                // However, looking at the frontend code, it tries to fetch game details immediately.
+                // Let's allow /api/v1/games/by-pin/** publicly.
+                .requestMatchers("/api/v1/games/by-pin/**").permitAll()
                 .anyRequest().authenticated()
             );
         
-        // Add the filter to the chain here
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -46,19 +49,5 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
-    }
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        // For demonstration. Replace with a real UserDetailsService that connects to your user database.
-        var user = User.withUsername("user")
-            .password(passwordEncoder().encode("password"))
-            .roles("USER")
-            .build();
-        var guest = User.withUsername("guest")
-            .password(passwordEncoder().encode("guest"))
-            .roles("GUEST")
-            .build();
-        return new InMemoryUserDetailsManager(user, guest);
     }
 }

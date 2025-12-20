@@ -5,5 +5,5 @@ import com.kubou.domain.entity.Question;
 import com.kubou.domain.entity.UserAnswer;
 
 public interface IScoringStrategy {
-    int calculate(UserAnswer answer, Question question, GameConfig config);
+    int calculate(UserAnswer answer, Question question, GameConfig config, int currentStreak);
 }

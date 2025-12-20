@@ -20,6 +20,7 @@ import java.security.Principal;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Controller
@@ -54,14 +55,39 @@ public class GameController {
     @MessageMapping("/lobby/join")
     public void joinLobby(@Payload JoinLobbyRequest request, SimpMessageHeaderAccessor headerAccessor) {
         Principal principal = headerAccessor.getUser();
+        if (principal == null) {
+            // Should not happen if frontend enforces guest login, but handle gracefully
+            return;
+        }
+
         String nickname = (String) headerAccessor.getSessionAttributes().get("nickname");
         
-        Player player = new Player(principal.getName(), nickname);
+        // Determine if user is anonymous or authenticated
+        String userId = null;
+        if (!principal.getName().startsWith("guest-")) {
+             userId = principal.getName();
+        }
+
+        String playerId = principal.getName();
+
+        Player player = new Player(playerId, userId, nickname);
         joinGameUseCase.execute(request.getPin(), player);
 
         gameSessionRepository.findByPin(request.getPin()).ifPresent(session -> {
-            String destination = "/topic/lobby/" + request.getPin() + "/players";
-            messagingTemplate.convertAndSend(destination, session.getPlayers());
+            // Broadcast to PIN topic (standard for players)
+            String pinDestination = "/topic/lobby/" + request.getPin() + "/players";
+            messagingTemplate.convertAndSend(pinDestination, session.getPlayers());
+            
+            // Broadcast to ID topic (for host monitoring)
+            String idDestination = "/topic/lobby/" + session.getId() + "/players";
+            messagingTemplate.convertAndSend(idDestination, session.getPlayers());
+
+            // Send Game ID to the joining player so they can subscribe to game topics
+            messagingTemplate.convertAndSendToUser(
+                principal.getName(), 
+                "/queue/lobby/joined", 
+                Map.of("gameId", session.getId(), "pin", session.getPin())
+            );
         });
     }
 
@@ -106,7 +132,12 @@ public class GameController {
                     .sorted(Comparator.comparingInt(Player::getScore).reversed())
                     .limit(5)
                     .collect(Collectors.toList());
+            
             messagingTemplate.convertAndSend("/topic/game/" + gameId + "/leaderboard", leaderboard);
+            
+            if (session.isTeamMode()) {
+                messagingTemplate.convertAndSend("/topic/game/" + gameId + "/teams", session.getTeams());
+            }
         });
     }
 }

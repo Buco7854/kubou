@@ -1,27 +1,38 @@
 package com.kubou.application.usecase;
 
 import com.kubou.application.repository.GameSessionRepository;
+import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuizRepository;
+import com.kubou.application.service.AchievementService;
 import com.kubou.domain.entity.*;
 import com.kubou.domain.service.IScoringStrategy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class SubmitAnswerUseCase {
 
     private final GameSessionRepository gameSessionRepository;
     private final QuizRepository quizRepository;
+    private final PlayerResponseRepository playerResponseRepository;
     private final IScoringStrategy scoringStrategy;
+    private final AchievementService achievementService;
 
     public SubmitAnswerUseCase(
             GameSessionRepository gameSessionRepository,
             QuizRepository quizRepository,
-            IScoringStrategy scoringStrategy
+            PlayerResponseRepository playerResponseRepository,
+            IScoringStrategy scoringStrategy,
+            AchievementService achievementService
     ) {
         this.gameSessionRepository = gameSessionRepository;
         this.quizRepository = quizRepository;
+        this.playerResponseRepository = playerResponseRepository;
         this.scoringStrategy = scoringStrategy;
+        this.achievementService = achievementService;
     }
 
     @Transactional
@@ -37,14 +48,48 @@ public class SubmitAnswerUseCase {
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Question not found"));
 
-        int score = scoringStrategy.calculate(userAnswer, question, new GameConfig());
-
         Player player = gameSession.getPlayers().stream()
                 .filter(p -> p.getId().equals(userAnswer.getPlayerId()))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Player not found"));
 
-        player.setScore(player.getScore() + score);
+        // Calculate score using current streak
+        int score = scoringStrategy.calculate(userAnswer, question, gameSession.getGameConfig(), player.getCurrentStreak());
+        boolean isCorrect = score > 0; // Simplified check
+
+        // Update player stats
+        if (isCorrect) {
+            player.setScore(player.getScore() + score);
+            player.setCurrentStreak(player.getCurrentStreak() + 1);
+        } else {
+            player.setCurrentStreak(0);
+        }
+        
+        // Update Team Score if in Team Mode
+        if (gameSession.isTeamMode()) {
+            gameSession.getTeams().stream()
+                    .filter(t -> t.getPlayerIds().contains(player.getId()))
+                    .findFirst()
+                    .ifPresent(team -> team.setScore(team.getScore() + score));
+        }
+        
+        // Check achievements
+        achievementService.checkAndUnlockAchievements(player, userAnswer, isCorrect);
+        
+        // Save raw response for analytics
+        PlayerResponse response = new PlayerResponse(
+                UUID.randomUUID().toString(),
+                gameId,
+                player.getId(),
+                question.getId(),
+                userAnswer.getAnswerIndex(),
+                isCorrect,
+                userAnswer.getTimeToAnswerMs(),
+                score,
+                LocalDateTime.now()
+        );
+        playerResponseRepository.save(response);
+        
         gameSessionRepository.save(gameSession);
         
         return score;

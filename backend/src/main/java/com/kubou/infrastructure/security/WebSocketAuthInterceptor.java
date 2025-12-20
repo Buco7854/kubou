@@ -1,5 +1,7 @@
 package com.kubou.infrastructure.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -16,6 +18,8 @@ import java.util.Map;
 
 @Component
 public class WebSocketAuthInterceptor implements ChannelInterceptor {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketAuthInterceptor.class);
 
     private final JwtTokenProvider tokenProvider;
     private final UserDetailsService userDetailsService;
@@ -37,16 +41,26 @@ public class WebSocketAuthInterceptor implements ChannelInterceptor {
                     String username = tokenProvider.getUsernameFromJWT(jwt);
                     String nickname = tokenProvider.getNicknameFromJWT(jwt);
 
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username.startsWith("guest-") ? "guest" : username);
+                    UserDetails userDetails;
+                    try {
+                        userDetails = userDetailsService.loadUserByUsername(username);
+                    } catch (Exception e) {
+                        logger.error("Failed to load user details for username: {}", username, e);
+                        return message;
+                    }
                     
-                    // Pass nickname in the session attributes
                     Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
                     if (sessionAttributes != null) {
                         sessionAttributes.put("nickname", nickname);
                     }
 
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            username, 
+                            null, 
+                            userDetails.getAuthorities()
+                    );
                     accessor.setUser(authentication);
+                    logger.info("Successfully authenticated WebSocket connection for user: {}", username);
                 }
             }
         }

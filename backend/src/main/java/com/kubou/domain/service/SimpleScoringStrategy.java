@@ -10,7 +10,7 @@ public class SimpleScoringStrategy implements IScoringStrategy {
     private static final int INCORRECT_ANSWER_SCORE = 0;
 
     @Override
-    public int calculate(UserAnswer answer, Question question, GameConfig config) {
+    public int calculate(UserAnswer answer, Question question, GameConfig config, int currentStreak) {
         if (answer.getAnswerIndex() == question.getCorrectAnswerIndex()) {
             return CORRECT_ANSWER_SCORE;
         }

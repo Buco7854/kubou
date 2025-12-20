@@ -8,7 +8,9 @@ import com.kubou.infrastructure.repository.jpa.model.QuizData;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component("jpaQuizRepository")
 public class QuizRepositoryImpl implements QuizRepository {
@@ -33,5 +35,27 @@ public class QuizRepositoryImpl implements QuizRepository {
         QuizData quizData = quizMapper.toData(quiz);
         QuizData savedData = quizJpaRepository.save(quizData);
         return quizMapper.toDomain(savedData);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Quiz> findAll() {
+        return quizJpaRepository.findAll().stream()
+                .map(quizMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Quiz> findByCreatorId(String creatorId) {
+        return quizJpaRepository.findByCreatorId(creatorId).stream()
+                .map(quizMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteById(String id) {
+        quizJpaRepository.deleteById(id);
     }
 }

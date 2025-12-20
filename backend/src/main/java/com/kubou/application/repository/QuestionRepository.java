@@ -9,4 +9,5 @@ public interface QuestionRepository {
     Optional<Question> findById(String id);
     List<Question> findAll();
     List<Question> findAllById(List<String> ids);
+    List<Question> findByCreatorId(String creatorId); // Added method
 }
