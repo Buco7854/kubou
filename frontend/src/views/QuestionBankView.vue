@@ -29,7 +29,7 @@ const fetchQuestions = async () => {
     })
     questions.value = response.data
   } catch (error) {
-    console.error('Error fetching questions:', error)
+    console.error('Erreur lors de la récupération des questions:', error)
   }
 }
 
@@ -38,7 +38,13 @@ const createQuestion = async () => {
     const token = localStorage.getItem('token')
     const questionPayload = {
       ...newQuestion.value,
-      tags: newQuestion.value.tags.split(',').map(tag => tag.trim())
+      options: newQuestion.value.options.filter(opt => opt.trim() !== ''),
+      tags: newQuestion.value.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '')
+    }
+
+    if (questionPayload.options.length < 2) {
+        alert("Veuillez ajouter au moins 2 options.")
+        return
     }
 
     await axios.post('/api/v1/questions', questionPayload, {
@@ -56,9 +62,22 @@ const createQuestion = async () => {
     showCreateForm.value = false
     fetchQuestions()
   } catch (error) {
-    console.error('Error creating question:', error)
-    alert('Failed to create question')
+    console.error('Erreur lors de la création de la question:', error)
+    alert('Échec de la création de la question')
   }
+}
+
+const addOption = () => {
+    newQuestion.value.options.push('')
+}
+
+const removeOption = (index: number) => {
+    if (newQuestion.value.options.length > 2) {
+        newQuestion.value.options.splice(index, 1)
+        if (newQuestion.value.correctAnswerIndex >= index && newQuestion.value.correctAnswerIndex > 0) {
+            newQuestion.value.correctAnswerIndex--
+        }
+    }
 }
 
 onMounted(() => {
@@ -67,87 +86,122 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-900">Question Bank</h2>
-      <button
-        @click="showCreateForm = !showCreateForm"
-        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700"
-      >
-        {{ showCreateForm ? 'Cancel' : 'Add Question' }}
-      </button>
-    </div>
-
-    <!-- Create Question Form -->
-    <div v-if="showCreateForm" class="bg-white p-6 rounded-lg shadow-md mb-8">
-      <h3 class="text-lg font-medium mb-4">New Question</h3>
-      <form @submit.prevent="createQuestion" class="space-y-4">
+  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+      <div class="flex justify-between items-center mb-8">
         <div>
-          <label class="block text-sm font-medium text-gray-700">Question Text</label>
-          <input v-model="newQuestion.text" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" required />
+            <h2 class="text-3xl font-extrabold text-gray-900">Banque de Questions</h2>
+            <p class="mt-1 text-sm text-gray-500">Créez et gérez votre bibliothèque de questions réutilisables.</p>
         </div>
+        <button
+          @click="showCreateForm = !showCreateForm"
+          class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 transition transform hover:scale-105"
+        >
+          {{ showCreateForm ? 'Annuler' : '+ Ajouter une Question' }}
+        </button>
+      </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div v-for="(option, index) in newQuestion.options" :key="index">
-            <label class="block text-sm font-medium text-gray-700">Option {{ index + 1 }}</label>
-            <input v-model="newQuestion.options[index]" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" required />
-          </div>
+      <!-- Create Question Form -->
+      <div v-if="showCreateForm" class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100 mb-8 animate-fade-in">
+        <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100">
+            <h3 class="text-lg font-bold text-indigo-900">Nouvelle Question</h3>
         </div>
+        <div class="p-6 sm:p-8">
+            <form @submit.prevent="createQuestion" class="space-y-6">
+                <div>
+                <label class="block text-sm font-bold text-gray-700 mb-2">Énoncé de la Question</label>
+                <input v-model="newQuestion.text" type="text" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-lg p-3 border" placeholder="Quelle est la capitale de la France ?" required />
+                </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Correct Answer (Option Number)</label>
-          <select v-model="newQuestion.correctAnswerIndex" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2">
-            <option v-for="(option, index) in newQuestion.options" :key="index" :value="index">
-              Option {{ index + 1 }}
-            </option>
-          </select>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Options</label>
+                    <div class="space-y-3">
+                        <div v-for="(option, index) in newQuestion.options" :key="index" class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 rounded-l-lg flex items-center justify-center text-white font-bold"
+                                 :class="index === 0 ? 'bg-red-500' : index === 1 ? 'bg-blue-500' : index === 2 ? 'bg-yellow-500' : 'bg-green-500'">
+                                {{ index === 0 ? '▲' : index === 1 ? '◆' : index === 2 ? '●' : '■' }}
+                            </div>
+                            <input v-model="newQuestion.options[index]" type="text" class="block w-full border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border-y border-r" required :placeholder="`Option ${index + 1}`" />
+
+                            <div class="flex items-center px-3 bg-gray-50 border-y border-r border-gray-300 h-10">
+                                <input type="radio" :value="index" v-model="newQuestion.correctAnswerIndex" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300" title="Marquer comme bonne réponse" />
+                            </div>
+
+                            <button type="button" @click="removeOption(index)" class="ml-2 text-red-500 hover:text-red-700 p-2" v-if="newQuestion.options.length > 2" title="Supprimer l'option">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" @click="addOption" class="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Ajouter une option
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 bg-gray-50 p-6 rounded-xl">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Tags</label>
+                        <input v-model="newQuestion.tags" type="text" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border" placeholder="géographie, europe" />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Difficulté (1-5)</label>
+                        <input v-model="newQuestion.difficultyLevel" type="number" min="1" max="5" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2.5 border" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end pt-4">
+                <button type="submit" class="inline-flex justify-center py-3 px-8 border border-transparent shadow-sm text-base font-bold rounded-full text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transform hover:scale-105 transition">
+                    Enregistrer la Question
+                </button>
+                </div>
+            </form>
         </div>
+      </div>
 
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
-            <input v-model="newQuestion.tags" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" placeholder="math, algebra" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700">Difficulty (1-5)</label>
-            <input v-model="newQuestion.difficultyLevel" type="number" min="1" max="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
-          </div>
-        </div>
-
-        <div class="flex justify-end pt-4">
-          <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-            Save Question
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Questions List -->
-    <div class="bg-white shadow overflow-hidden sm:rounded-md">
-      <ul role="list" class="divide-y divide-gray-200">
-        <li v-for="question in questions" :key="question.id">
-          <div class="px-4 py-4 sm:px-6">
-            <div class="flex items-center justify-between">
-              <p class="text-sm font-medium text-indigo-600 truncate">{{ question.text }}</p>
-              <div class="ml-2 flex-shrink-0 flex">
-                <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                  Level {{ question.difficultyLevel }}
-                </p>
+      <!-- Questions List -->
+      <div class="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+        <ul role="list" class="divide-y divide-gray-100">
+          <li v-for="question in questions" :key="question.id" class="hover:bg-gray-50 transition duration-150">
+            <div class="px-6 py-5">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-lg font-bold text-gray-900">{{ question.text }}</p>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                  Niveau {{ question.difficultyLevel }}
+                </span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                  <div v-for="(opt, idx) in question.options" :key="idx"
+                       class="text-sm px-3 py-1 rounded border flex items-center"
+                       :class="idx === question.correctAnswerIndex ? 'bg-green-50 border-green-200 text-green-700 font-medium' : 'bg-gray-50 border-gray-100 text-gray-500'">
+                      <span v-if="idx === question.correctAnswerIndex" class="mr-2 text-green-600">✓</span>
+                      {{ opt }}
+                  </div>
+              </div>
+              <div class="flex items-center text-sm text-gray-500">
+                <span class="mr-2">Tags:</span>
+                <span v-if="question.tags && question.tags.length" class="flex gap-1">
+                    <span v-for="tag in question.tags" :key="tag" class="bg-gray-100 px-2 py-0.5 rounded text-xs">#{{ tag }}</span>
+                </span>
+                <span v-else class="italic text-gray-400">Aucun</span>
               </div>
             </div>
-            <div class="mt-2 sm:flex sm:justify-between">
-              <div class="sm:flex">
-                <p class="flex items-center text-sm text-gray-500">
-                  Tags: {{ question.tags ? question.tags.join(', ') : 'None' }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </li>
-        <li v-if="questions.length === 0" class="px-4 py-4 sm:px-6 text-center text-gray-500">
-          No questions found. Add some!
-        </li>
-      </ul>
+          </li>
+          <li v-if="questions.length === 0" class="px-6 py-12 text-center text-gray-500">
+            <div class="text-4xl mb-2">📭</div>
+            <p>Votre banque de questions est vide.</p>
+          </li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>

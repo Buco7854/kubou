@@ -2,11 +2,10 @@ version: '3.8'
 services:
   postgres:
     image: postgres:18
-    container_name: ploutos-postgres
     environment:
-      POSTGRES_USER: ploutos
+      POSTGRES_USER: kubou
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: ploutos
+      POSTGRES_DB: kubou
     ports:
       - "5432:5432"
     volumes:
