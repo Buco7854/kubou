@@ -82,7 +82,8 @@ const generateSmartReview = async () => {
 
         <!-- Action Buttons -->
         <div class="flex flex-col md:flex-row justify-center gap-4">
-            <router-link to="/create-quiz" class="group relative inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-green-600 rounded-full hover:bg-green-700 transition shadow-md overflow-hidden">
+            <!-- Only show Create Quiz if logged in AND NOT a guest -->
+            <router-link v-if="authStore.isLoggedIn && !authStore.isGuest" to="/create-quiz" class="group relative inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-green-600 rounded-full hover:bg-green-700 transition shadow-md overflow-hidden">
                 <span class="absolute w-0 h-0 transition-all duration-500 ease-out bg-white rounded-full group-hover:w-56 group-hover:h-56 opacity-10"></span>
                 <span class="relative">✨ Créer un Quiz</span>
             </router-link>
@@ -92,14 +93,15 @@ const generateSmartReview = async () => {
             </router-link>
 
             <div v-else class="flex gap-4">
-                <router-link to="/quizzes" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-indigo-600 bg-white border-2 border-indigo-100 rounded-full hover:bg-indigo-50 transition shadow-sm">
+                <!-- Only show My Quizzes if logged in AND NOT a guest -->
+                <router-link v-if="!authStore.isGuest" to="/quizzes" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-indigo-600 bg-white border-2 border-indigo-100 rounded-full hover:bg-indigo-50 transition shadow-sm">
                     📂 Mes Quiz
                 </router-link>
             </div>
         </div>
 
-        <!-- Smart Review Section (Authenticated) -->
-        <div v-if="authStore.isLoggedIn" class="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm p-6 rounded-xl border border-indigo-100 mt-8">
+        <!-- Smart Review Section (Authenticated & Not Guest) -->
+        <div v-if="authStore.isLoggedIn && !authStore.isGuest" class="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm p-6 rounded-xl border border-indigo-100 mt-8">
             <div class="flex items-center justify-between flex-col md:flex-row gap-4">
                 <div class="text-left">
                     <h3 class="text-lg font-bold text-gray-800">🚀 Boostez vos compétences</h3>

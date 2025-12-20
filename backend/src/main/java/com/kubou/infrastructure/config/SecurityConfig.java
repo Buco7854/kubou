@@ -4,6 +4,7 @@ import com.kubou.infrastructure.security.CustomUserDetailsService;
 import com.kubou.infrastructure.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,14 +26,21 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
-                // Allow fetching game by PIN without authentication (or with guest auth which is handled by filter)
-                // Actually, the frontend sends the token if available.
-                // If the user is not logged in (e.g. just entering PIN on home page), they don't have a token yet.
-                // We should probably allow this endpoint to be accessed publicly so the frontend can validate the PIN
-                // and then prompt for login/guest nickname if needed, OR the frontend should do guest login FIRST.
-                // However, looking at the frontend code, it tries to fetch game details immediately.
-                // Let's allow /api/v1/games/by-pin/** publicly.
                 .requestMatchers("/api/v1/games/by-pin/**").permitAll()
+                
+                // Restrict creation endpoints to USER or ADMIN roles (exclude GUEST)
+                .requestMatchers(HttpMethod.POST, "/api/v1/quizzes/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/quizzes/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/quizzes/**").hasAnyRole("USER", "ADMIN")
+                
+                .requestMatchers(HttpMethod.POST, "/api/v1/questions/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/api/v1/questions/**").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/questions/**").hasAnyRole("USER", "ADMIN")
+                
+                .requestMatchers(HttpMethod.POST, "/api/v1/games/**").hasAnyRole("USER", "ADMIN") // Only registered users can host games
+                
+                // Guests can only participate (GET/POST to game session endpoints handled by controller logic or specific permissions)
+                // But generally, any authenticated user (including GUEST) can access other endpoints unless restricted above.
                 .anyRequest().authenticated()
             );
         

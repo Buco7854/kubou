@@ -18,7 +18,7 @@ const handleLogin = async () => {
       username: username.value,
       password: password.value
     })
-    authStore.setAuth(response.data.token, username.value)
+    authStore.setAuth(response.data.token, username.value, false)
 
     // Redirect to intended page or home
     const redirectPath = route.query.redirect as string || '/'
@@ -34,7 +34,7 @@ const handleGuestLogin = async () => {
     const response = await axios.post('/api/v1/auth/guest', {
       nickname: nickname.value
     })
-    authStore.setAuth(response.data.token, response.data.nickname)
+    authStore.setAuth(response.data.token, response.data.nickname, true)
 
     // Redirect to intended page or home
     const redirectPath = route.query.redirect as string || '/'
