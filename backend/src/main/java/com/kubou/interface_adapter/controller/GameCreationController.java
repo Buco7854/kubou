@@ -4,6 +4,7 @@ import com.kubou.application.repository.GameSessionRepository;
 import com.kubou.application.service.TeamService;
 import com.kubou.application.usecase.CreateGameUseCase;
 import com.kubou.domain.entity.GameSession;
+import com.kubou.domain.entity.GameState;
 import com.kubou.domain.entity.ScoringSettings;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -71,6 +72,31 @@ public class GameCreationController {
     public ResponseEntity<List<GameSession>> getMySessions(Principal principal) {
         List<GameSession> sessions = gameSessionRepository.findByHostId(principal.getName());
         return ResponseEntity.ok(sessions);
+    }
+    
+    @GetMapping("/participating")
+    @Operation(summary = "Get all active game sessions where the current user is a player")
+    public ResponseEntity<List<GameSession>> getParticipatingSessions(Principal principal) {
+        // This works for both registered users (username) and guests (guest-UUID)
+        // because we store the principal name in the userId field of PlayerData.
+        List<GameSession> sessions = gameSessionRepository.findActiveSessionsByPlayerUserId(principal.getName());
+        return ResponseEntity.ok(sessions);
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Close/Delete a game session")
+    public ResponseEntity<Void> closeSession(@PathVariable String id, Principal principal) {
+        return gameSessionRepository.findById(id)
+                .map(session -> {
+                    if (!session.getHostId().equals(principal.getName())) {
+                        return ResponseEntity.status(403).<Void>build();
+                    }
+                    // Instead of deleting, we mark it as FINISHED to keep history
+                    session.setState(GameState.FINISHED);
+                    gameSessionRepository.save(session);
+                    return ResponseEntity.noContent().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     public static class CreateGameRequest {

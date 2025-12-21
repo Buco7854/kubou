@@ -40,6 +40,14 @@ public class PlayerResponseRepositoryImpl implements PlayerResponseRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PlayerResponse> findByGameSessionIdAndQuestionId(String gameSessionId, String questionId) {
+        return jpaRepository.findByGameSessionIdAndQuestionId(gameSessionId, questionId).stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PlayerResponse> findByPlayerId(String playerId) {
         return jpaRepository.findByPlayerId(playerId).stream()
                 .map(mapper::toDomain)

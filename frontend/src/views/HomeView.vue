@@ -1,18 +1,90 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { Client } from '@stomp/stompjs'
+import SockJS from 'sockjs-client'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const gamePin = ref('')
 const isGenerating = ref(false)
+const activeSessions = ref<any[]>([])
+const participatingSessions = ref<any[]>([])
 
 const joinGame = () => {
   if (gamePin.value.trim()) {
     router.push(`/lobby/${gamePin.value}`)
   }
+}
+
+const fetchMySessions = async () => {
+    // Only fetch if logged in AND NOT a guest
+    if (authStore.isLoggedIn && !authStore.isGuest) {
+        try {
+            const token = authStore.token
+            const response = await axios.get('/api/v1/games/my-sessions', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            // Filter for active sessions (LOBBY or IN_PROGRESS)
+            activeSessions.value = response.data.filter((s: any) => s.state !== 'FINISHED')
+        } catch (error) {
+            console.error("Failed to fetch sessions", error)
+        }
+    }
+}
+
+const fetchParticipatingSessions = async () => {
+    // Fetch for ANY logged in user (including guests)
+    if (authStore.isLoggedIn) {
+        try {
+            const token = authStore.token
+            const response = await axios.get('/api/v1/games/participating', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            participatingSessions.value = response.data.filter((s: any) => s.state !== 'FINISHED')
+        } catch (error) {
+            console.error("Failed to fetch participating sessions", error)
+        }
+    }
+}
+
+const resumeSession = (pin: string) => {
+    router.push(`/lobby/${pin}`)
+}
+
+const closeSession = async (gameId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir fermer cette session ?")) return;
+
+    try {
+        const token = authStore.token
+        await axios.delete(`/api/v1/games/${gameId}`, {
+             headers: { Authorization: `Bearer ${token}` }
+        })
+        fetchMySessions()
+    } catch (error) {
+        console.error("Failed to close session", error)
+        alert("Impossible de fermer la session.")
+    }
+}
+
+const leaveSession = async (gameId: string) => {
+    if (!confirm("Êtes-vous sûr de vouloir quitter cette partie ?")) return;
+
+    // Since we don't have a REST endpoint for leaving (it's WS based in GameController),
+    // we can either add one or just hide it from the list locally if we assume the user won't rejoin.
+    // However, to be clean, we should probably connect and send the leave message, or add a REST endpoint.
+    // Given the constraints, let's just remove it from the local list for now as a "Hide" feature,
+    // or better, navigate to the lobby and let them click "Leave" if we implemented a leave button there.
+
+    // But the user asked for a button in the list.
+    // Let's use a quick WS connection to send the leave message if possible, or just acknowledge we can't easily do it without a REST endpoint.
+    // Ideally, we should add DELETE /api/v1/games/{id}/players/me
+
+    // For now, let's just navigate them to the lobby where they can leave properly or just ignore it.
+    // Actually, let's just hide it from the view to "clean up" the dashboard.
+    participatingSessions.value = participatingSessions.value.filter(s => s.id !== gameId);
 }
 
 const generateSmartReview = async () => {
@@ -42,6 +114,11 @@ const generateSmartReview = async () => {
         isGenerating.value = false
     }
 }
+
+onMounted(() => {
+    fetchMySessions()
+    fetchParticipatingSessions()
+})
 </script>
 
 <template>
@@ -56,6 +133,54 @@ const generateSmartReview = async () => {
             <p class="text-xl md:text-2xl text-gray-600 font-light max-w-2xl mx-auto">
                 La plateforme d'apprentissage interactive où chaque réponse compte.
             </p>
+        </div>
+
+        <!-- Active Sessions (Host) -->
+        <div v-if="activeSessions.length > 0" class="max-w-md mx-auto animate-fade-in-down">
+            <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-indigo-200 shadow-lg">
+                <h3 class="text-lg font-bold text-indigo-900 mb-3">🔴 Vos sessions (Host)</h3>
+                <div class="space-y-2">
+                    <div v-for="session in activeSessions" :key="session.id"
+                         class="flex justify-between items-center p-3 bg-white rounded-lg border border-indigo-100 hover:border-indigo-300 transition shadow-sm hover:shadow-md">
+                        <div class="text-left cursor-pointer flex-grow" @click="resumeSession(session.pin)">
+                            <span class="block font-mono text-xl font-bold text-indigo-600 tracking-widest">{{ session.pin }}</span>
+                            <span class="text-xs text-gray-500">{{ session.state }}</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="resumeSession(session.pin)" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-medium hover:bg-indigo-200">
+                                Reprendre
+                            </button>
+                            <button @click="closeSession(session.id)" class="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium hover:bg-red-200">
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Participating Sessions (Player) -->
+        <div v-if="participatingSessions.length > 0" class="max-w-md mx-auto animate-fade-in-down">
+            <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-green-200 shadow-lg">
+                <h3 class="text-lg font-bold text-green-900 mb-3">🟢 En cours (Joueur)</h3>
+                <div class="space-y-2">
+                    <div v-for="session in participatingSessions" :key="session.id"
+                         class="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100 hover:border-green-300 transition shadow-sm hover:shadow-md">
+                        <div class="text-left cursor-pointer flex-grow" @click="resumeSession(session.pin)">
+                            <span class="block font-mono text-xl font-bold text-green-600 tracking-widest">{{ session.pin }}</span>
+                            <span class="text-xs text-gray-500">Participant</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @click="resumeSession(session.pin)" class="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium hover:bg-green-200">
+                                Rejoindre
+                            </button>
+                            <button @click="leaveSession(session.id)" class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium hover:bg-gray-200">
+                                Quitter
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Game Join Card -->

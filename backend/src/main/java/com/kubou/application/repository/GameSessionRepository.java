@@ -8,5 +8,6 @@ public interface GameSessionRepository {
     Optional<GameSession> findById(String id);
     Optional<GameSession> findByPin(String pin);
     List<GameSession> findByHostId(String hostId);
+    List<GameSession> findActiveSessionsByPlayerUserId(String userId);
     void save(GameSession gameSession);
 }

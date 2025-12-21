@@ -22,7 +22,7 @@ public class PlayerData {
     private GameSessionData gameSession;
 
     public PlayerData() {
-        this.id = UUID.randomUUID().toString();
+        // Default constructor for JPA
     }
 
     // Getters and Setters

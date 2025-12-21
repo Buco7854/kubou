@@ -98,7 +98,10 @@ const connectWebSocket = () => {
           })
       }
 
-      // Join the lobby ONLY if not host
+      // Join the lobby.
+      // FIX: Even if logged in (and not host), we must send the join message to register in the session.
+      // The previous logic `if (!isHost.value)` was correct for the host (who shouldn't join as player),
+      // but we need to ensure logged-in users who are NOT the host DO join.
       if (!isHost.value) {
           stompClient.value?.publish({
             destination: '/app/lobby/join',

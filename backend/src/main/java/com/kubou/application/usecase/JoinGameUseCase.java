@@ -26,11 +26,12 @@ public class JoinGameUseCase {
         GameSessionData gameSessionData = gameSessionJpaRepository.findByPin(pin)
                 .orElseThrow(() -> new RuntimeException("Game session not found"));
 
-        // Check if player already exists
-        boolean playerExists = gameSessionData.getPlayers().stream()
-                .anyMatch(p -> p.getId().equals(player.getId()));
+        // Check if player already exists based on userId (which is the principal name)
+        // We check if any player in the session has the same userId as the incoming player
+        boolean playerAlreadyInSession = gameSessionData.getPlayers().stream()
+                .anyMatch(p -> p.getUserId() != null && p.getUserId().equals(player.getUserId()));
 
-        if (!playerExists) {
+        if (!playerAlreadyInSession) {
             PlayerData newPlayerData = gameSessionMapper.toData(player);
             newPlayerData.setGameSession(gameSessionData);
             gameSessionData.getPlayers().add(newPlayerData);
@@ -43,6 +44,9 @@ public class JoinGameUseCase {
             }
             
             // No explicit save needed; transaction commit will flush changes to managed entity
+        } else {
+            // Optional: Update existing player info (e.g. nickname) if needed, or just ignore
+            // For now, we just don't add a duplicate entry.
         }
     }
 }

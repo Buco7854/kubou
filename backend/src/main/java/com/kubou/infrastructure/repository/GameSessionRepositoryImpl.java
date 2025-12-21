@@ -52,6 +52,14 @@ public class GameSessionRepositoryImpl implements GameSessionRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<GameSession> findActiveSessionsByPlayerUserId(String userId) {
+        return gameSessionJpaRepository.findActiveSessionsByPlayerUserId(userId).stream()
+                .map(gameSessionMapper::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public void save(GameSession gameSession) {
         // To avoid "Multiple representations" error, we should fetch the existing entity and update it

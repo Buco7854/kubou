@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -39,6 +40,10 @@ public class SubmitAnswerUseCase {
     public int execute(String gameId, UserAnswer userAnswer) {
         GameSession gameSession = gameSessionRepository.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game session not found"));
+
+        if (gameSession.getState() != GameState.IN_PROGRESS) {
+            throw new IllegalStateException("Game is not in progress");
+        }
 
         Quiz quiz = quizRepository.findById(gameSession.getQuizId())
                 .orElseThrow(() -> new RuntimeException("Quiz not found"));
@@ -90,6 +95,20 @@ public class SubmitAnswerUseCase {
         );
         playerResponseRepository.save(response);
         
+        // Check if all players have answered
+        List<PlayerResponse> responses = playerResponseRepository.findByGameSessionIdAndQuestionId(gameId, question.getId());
+        
+        long answeredCount = responses.stream().map(PlayerResponse::getPlayerId).distinct().count();
+        boolean currentIncluded = responses.stream().anyMatch(r -> r.getPlayerId().equals(player.getId()));
+        if (!currentIncluded) {
+            answeredCount++;
+        }
+
+        if (answeredCount >= gameSession.getPlayers().size()) {
+            // All players answered, move to QUESTION_RESULTS state
+            gameSession.setState(GameState.QUESTION_RESULTS);
+        }
+
         gameSessionRepository.save(gameSession);
         
         return score;
