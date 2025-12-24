@@ -13,6 +13,7 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/quizzes")
@@ -87,6 +88,26 @@ public class QuizController {
         quiz.getQuestions().addAll(questionsToAdd);
         quizRepository.save(quiz);
         
+        return ResponseEntity.ok(quiz);
+    }
+
+    @DeleteMapping("/{quizId}/questions/{questionId}")
+    @Operation(summary = "Remove a question from a quiz")
+    public ResponseEntity<Quiz> removeQuestionFromQuiz(@PathVariable String quizId, @PathVariable String questionId, Principal principal) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new RuntimeException("Quiz not found with ID: " + quizId));
+
+        if (!quiz.getCreatorId().equals(principal.getName())) {
+            return ResponseEntity.status(403).build();
+        }
+
+        List<Question> updatedQuestions = quiz.getQuestions().stream()
+                .filter(q -> !q.getId().equals(questionId))
+                .collect(Collectors.toList());
+
+        quiz.setQuestions(updatedQuestions);
+        quizRepository.save(quiz);
+
         return ResponseEntity.ok(quiz);
     }
 

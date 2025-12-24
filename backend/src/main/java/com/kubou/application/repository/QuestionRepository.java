@@ -10,4 +10,5 @@ public interface QuestionRepository {
     List<Question> findAll();
     List<Question> findAllById(List<String> ids);
     List<Question> findByCreatorId(String creatorId); // Added method
+    void deleteById(String id);
 }

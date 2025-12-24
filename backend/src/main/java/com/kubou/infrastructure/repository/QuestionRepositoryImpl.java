@@ -60,4 +60,10 @@ public class QuestionRepositoryImpl implements QuestionRepository {
                 .map(quizMapper::toQuestionDomain)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void deleteById(String id) {
+        questionJpaRepository.deleteById(id);
+    }
 }
