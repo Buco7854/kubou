@@ -89,6 +89,22 @@ const addQuestionsToQuiz = async () => {
   }
 }
 
+const removeQuestionFromQuiz = async (questionId: string) => {
+  if (!confirm('Voulez-vous vraiment retirer cette question du quiz ?')) return
+
+  try {
+    const token = localStorage.getItem('token')
+    await axios.delete(`/api/v1/quizzes/${quizId}/questions/${questionId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    await fetchQuiz()
+    await fetchAvailableQuestions()
+  } catch (error) {
+    console.error('Erreur lors du retrait de la question:', error)
+    alert('Échec du retrait de la question')
+  }
+}
+
 const createAndAddQuestion = async () => {
   try {
     const token = localStorage.getItem('token')
@@ -259,21 +275,26 @@ onMounted(async () => {
                   <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
                       <ul role="list" class="divide-y divide-gray-100">
                       <li v-for="(question, index) in quiz.questions" :key="question.id" class="hover:bg-gray-50 transition p-6">
-                          <div class="flex items-start">
-                              <span class="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold text-sm mr-4">
-                                  {{ index + 1 }}
-                              </span>
-                              <div class="flex-1">
-                                  <p class="text-lg font-medium text-gray-900">{{ question.text }}</p>
-                                  <div class="mt-2 flex items-center space-x-2">
-                                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                          Niveau {{ question.difficultyLevel }}
-                                      </span>
-                                      <span v-for="tag in question.tags" :key="tag" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                          #{{ tag }}
-                                      </span>
+                          <div class="flex items-start justify-between">
+                              <div class="flex items-start">
+                                  <span class="flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 font-bold text-sm mr-4">
+                                      {{ index + 1 }}
+                                  </span>
+                                  <div class="flex-1">
+                                      <p class="text-lg font-medium text-gray-900">{{ question.text }}</p>
+                                      <div class="mt-2 flex items-center space-x-2">
+                                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                              Niveau {{ question.difficultyLevel }}
+                                          </span>
+                                          <span v-for="tag in question.tags" :key="tag" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                              #{{ tag }}
+                                          </span>
+                                      </div>
                                   </div>
                               </div>
+                              <button @click="removeQuestionFromQuiz(question.id)" class="text-red-500 hover:text-red-700 text-sm font-medium ml-4">
+                                  Retirer
+                              </button>
                           </div>
                       </li>
                       <li v-if="quiz.questions.length === 0" class="p-12 text-center text-gray-500 italic">

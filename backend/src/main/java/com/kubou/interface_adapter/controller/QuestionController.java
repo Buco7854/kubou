@@ -1,7 +1,9 @@
 package com.kubou.interface_adapter.controller;
 
 import com.kubou.application.repository.QuestionRepository;
+import com.kubou.application.repository.QuizRepository;
 import com.kubou.domain.entity.Question;
+import com.kubou.domain.entity.Quiz;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/questions")
@@ -17,9 +20,11 @@ import java.util.UUID;
 public class QuestionController {
 
     private final QuestionRepository questionRepository;
+    private final QuizRepository quizRepository;
 
-    public QuestionController(QuestionRepository questionRepository) {
+    public QuestionController(QuestionRepository questionRepository, QuizRepository quizRepository) {
         this.questionRepository = questionRepository;
+        this.quizRepository = quizRepository;
     }
 
     @PostMapping
@@ -51,13 +56,36 @@ public class QuestionController {
                 .map(existingQuestion -> {
                     if (!existingQuestion.getCreatorId().equals(principal.getName())) {
                         // Return 403 if not the owner
-                        // Since we are inside map, we can't easily return ResponseEntity with status directly without casting or throwing
-                        // For simplicity, we'll just return not found or throw exception, but let's try to be clean
                         throw new RuntimeException("Unauthorized"); 
                     }
                     updatedQuestion.setId(id);
                     updatedQuestion.setCreatorId(existingQuestion.getCreatorId()); // Preserve creator
                     return ResponseEntity.ok(questionRepository.save(updatedQuestion));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a question by ID")
+    public ResponseEntity<Void> deleteQuestion(@PathVariable String id, Principal principal) {
+        return questionRepository.findById(id)
+                .map(question -> {
+                    if (!question.getCreatorId().equals(principal.getName())) {
+                        return ResponseEntity.status(403).<Void>build();
+                    }
+
+                    // Remove question from all quizzes
+                    List<Quiz> allQuizzes = quizRepository.findAll();
+                    for (Quiz quiz : allQuizzes) {
+                        boolean removed = quiz.getQuestions().removeIf(q -> q.getId().equals(id));
+                        if (removed) {
+                            quizRepository.save(quiz);
+                        }
+                    }
+
+                    questionRepository.deleteById(id);
+                    
+                    return ResponseEntity.noContent().<Void>build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

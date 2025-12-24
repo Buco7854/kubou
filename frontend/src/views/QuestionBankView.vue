@@ -67,6 +67,21 @@ const createQuestion = async () => {
   }
 }
 
+const deleteQuestion = async (id: string) => {
+  if (!confirm('Êtes-vous sûr de vouloir supprimer cette question ? Elle sera retirée de tous les quiz.')) return
+
+  try {
+    const token = localStorage.getItem('token')
+    await axios.delete(`/api/v1/questions/${id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    fetchQuestions()
+  } catch (error) {
+    console.error('Erreur lors de la suppression de la question:', error)
+    alert('Échec de la suppression de la question')
+  }
+}
+
 const addOption = () => {
     newQuestion.value.options.push('')
 }
@@ -165,9 +180,14 @@ onMounted(() => {
             <div class="px-6 py-5">
               <div class="flex items-center justify-between mb-2">
                 <p class="text-lg font-bold text-gray-900">{{ question.text }}</p>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
-                  Niveau {{ question.difficultyLevel }}
-                </span>
+                <div class="flex items-center space-x-3">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                    Niveau {{ question.difficultyLevel }}
+                    </span>
+                    <button @click="deleteQuestion(question.id)" class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-50 transition" title="Supprimer la question">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
               </div>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                   <div v-for="(opt, idx) in question.options" :key="idx"
