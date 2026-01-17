@@ -5,6 +5,10 @@ plugins {
     id("io.spring.dependency-management") version "1.1.4"
 }
 
+// DO NOT CHANGE OTHERWISE TESTS BREAKS
+extra["byte-buddy.version"] = "1.14.17"
+extra["mockito.version"] = "5.11.0"
+
 sonar {
   properties {
     property("sonar.projectKey", "Buco7854_kubou")
