@@ -7,8 +7,8 @@ plugins {
 
 sonar {
   properties {
-    property "sonar.projectKey", "Buco7854_kubou"
-    property "sonar.organization", "buco7854"
+    property("sonar.projectKey", "Buco7854_kubou")
+    property("sonar.organization", "buco7854")
   }
 }
 
