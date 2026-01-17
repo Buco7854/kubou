@@ -5,7 +5,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.4"
 }
 
-// DO NOT CHANGE OTHERWISE TESTS BREAKS
+// DO NOT CHANGE OTHERWISE TESTS WILL BREAK
 extra["byte-buddy.version"] = "1.14.17"
 extra["mockito.version"] = "5.11.0"
 
