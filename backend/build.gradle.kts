@@ -1,7 +1,19 @@
 plugins {
     id("java")
+    id("org.sonarqube") version "7.2.2.6593"
     id("org.springframework.boot") version "3.2.2"
     id("io.spring.dependency-management") version "1.1.4"
+}
+
+// DO NOT CHANGE OTHERWISE TESTS WILL BREAK
+extra["byte-buddy.version"] = "1.14.17"
+extra["mockito.version"] = "5.11.0"
+
+sonar {
+  properties {
+    property("sonar.projectKey", "Buco7854_kubou")
+    property("sonar.organization", "buco7854")
+  }
 }
 
 group = "com.kubou"
@@ -20,7 +32,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    // Add messaging security support
     implementation("org.springframework.security:spring-security-messaging")
 
     implementation("org.postgresql:postgresql")

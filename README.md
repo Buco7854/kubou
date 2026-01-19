@@ -4,7 +4,12 @@
 > Kubou est une plateforme interactive d'apprentissage qui transforme l'évaluation en expérience gamifiée, tout en offrant aux enseignants des outils d'analyse paramétriques avancés.
 
 [![CI/CD](https://github.com/Buco7854/kubou/actions/workflows/build.yml/badge.svg)](https://github.com/Buco7854/kubou/actions)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=alert_status)](https://sonarcloud.io/dashboard?id=Buco7854_kubou)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Buco7854_kubou)
+
+## Outils Similaires / Concurrents
+
+* Wooclap
+* Kahoot
 
 ## 📋 Gestion de Projet
 
@@ -59,6 +64,12 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
 * **Frontend:** Vue.js 3, TypeScript, TailwindCSS, Pinia.
 * **Data:** PostgreSQL 18, Docker.
 
+### Diagramme de Classe UML
+
+Voici une vue d'ensemble de la structure des classes du projet, illustrant les relations entre les entités du domaine, les services et les adaptateurs d'interface.
+
+![Diagramme de Classe UML](resources/class_diagram.png)
+
 ## 💻 Démarrage (Environnement de Dev)
 
 ### Prérequis
@@ -89,4 +100,4 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
     *Application:* http://localhost:5173
 
 ## 👤 Contributeurs
-**[Insights]([https://github.com/Buco7854](https://github.com/Buco7854/kubou/graphs/contributors))**.
+[Insights](https://github.com/Buco7854/kubou/graphs/contributors).

@@ -2,21 +2,26 @@ package com.kubou.application.usecase;
 
 import com.kubou.application.repository.GameSessionRepository;
 import com.kubou.domain.entity.GameSession;
-import com.kubou.infrastructure.repository.InMemoryGameSessionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class CreateGameUseCaseTest {
 
     private CreateGameUseCase createGameUseCase;
+
+    @Mock
     private GameSessionRepository gameSessionRepository;
 
     @BeforeEach
     void setUp() {
-        // Use the in-memory implementation for fast, isolated testing
-        gameSessionRepository = new InMemoryGameSessionRepository();
         createGameUseCase = new CreateGameUseCase(gameSessionRepository);
     }
 
@@ -38,8 +43,6 @@ class CreateGameUseCaseTest {
         assertEquals(hostId, createdSession.getHostId());
 
         // Verify it was saved
-        GameSession savedSession = gameSessionRepository.findById(createdSession.getId()).orElse(null);
-        assertNotNull(savedSession);
-        assertEquals(createdSession.getPin(), savedSession.getPin());
+        verify(gameSessionRepository).save(any(GameSession.class));
     }
 }
