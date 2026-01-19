@@ -89,4 +89,4 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
     *Application:* http://localhost:5173
 
 ## 👤 Contributeurs
-**[Insights]([https://github.com/Buco7854](https://github.com/Buco7854/kubou/graphs/contributors))**.
+[Insights]([https://github.com/Buco7854](https://github.com/Buco7854/kubou/graphs/contributors)).
