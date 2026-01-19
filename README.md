@@ -14,7 +14,7 @@ Le suivi des tâches et l'évolution du projet sont gérés via un tableau Kanba
 
 ## ✨ Fonctionnalités Clés (Core Features)
 
-Le projet s'articule autour de 6 piliers majeurs :
+Le projet s'articule autour de 6 features majeurs :
 
 ### 1. 🔄 Cycle de Vie & Temps Réel
 * Gestion complète des sessions de jeu (Lobby, Questions, Résultats).
