@@ -45,67 +45,17 @@ const currentQuestionIndex = ref(-1) // Start at -1 so first question (index 0) 
 const myTeamName = ref<string | null>(null)
 const quizIdRef = ref<string>('') // Store quizId for redirection
 
-// Achievement Metadata (copied from AchievementsView for consistency)
+// Achievement Metadata - ONLY ACTIVE BADGES
 const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
-    'SNIPER': { 
-        label: 'Sniper', 
-        description: '5 bonnes réponses d\'affilée', 
-        icon: '🎯',
-        color: 'border-red-500',
-        bg: 'from-red-500 to-red-700'
-    },
-    'FLASH': { 
-        label: 'Flash', 
-        description: 'Réponse correcte en moins de 1 seconde', 
-        icon: '⚡',
-        color: 'border-yellow-400',
-        bg: 'from-yellow-400 to-yellow-600'
-    },
-    'MARATHON': { 
-        label: 'Marathonien', 
-        description: 'Terminer un quiz complet', 
-        icon: '🏃',
-        color: 'border-blue-500',
-        bg: 'from-blue-500 to-blue-700'
-    },
-    'FIRST_GAME': { 
-        label: 'Première Partie', 
-        description: 'Terminer sa première partie', 
-        icon: '🐣',
-        color: 'border-green-400',
-        bg: 'from-green-400 to-green-600'
-    },
-    'WINNER': { 
-        label: 'Champion', 
-        description: 'Finir premier du classement', 
-        icon: '🥇',
-        color: 'border-yellow-500',
-        bg: 'from-yellow-500 to-yellow-700'
-    },
-    'TOP_3': { 
-        label: 'Podium', 
-        description: 'Finir dans le top 3', 
-        icon: '🏅',
-        color: 'border-gray-400',
-        bg: 'from-gray-400 to-gray-600'
-    },
-    'PERFECT': { 
-        label: 'Perfection', 
-        description: '100% de bonnes réponses', 
-        icon: '💎',
-        color: 'border-purple-500',
-        bg: 'from-purple-500 to-purple-700'
-    }
+    'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'border-red-500', bg: 'from-red-500 to-red-700' },
+    'FLASH': { label: 'Flash', description: 'Réponse correcte en moins de 1 seconde', icon: '⚡', color: 'border-yellow-400', bg: 'from-yellow-400 to-yellow-600' },
+    'TURBO': { label: 'Turbo', description: '3 réponses rapides (< 5s) d\'affilée', icon: '🚀', color: 'border-orange-500', bg: 'from-orange-500 to-orange-700' },
+    'COMEBACK': { label: 'Comeback', description: 'Bonne réponse après une erreur', icon: '🛡️', color: 'border-blue-400', bg: 'from-blue-400 to-blue-600' },
+    'LUCKY': { label: 'Chanceux', description: 'Bonne réponse sur une question difficile', icon: '🍀', color: 'border-green-500', bg: 'from-green-500 to-green-700' }
 }
 
 const getMetadata = (type: string) => {
-    return achievementMetadata[type] || { 
-        label: type, 
-        description: 'Succès débloqué', 
-        icon: '🏆',
-        color: 'border-yellow-200',
-        bg: 'from-yellow-400 to-yellow-600'
-    }
+    return achievementMetadata[type] || { label: type, description: 'Succès débloqué', icon: '🏆', color: 'border-yellow-200', bg: 'from-yellow-400 to-yellow-600' }
 }
 
 const updateMyTeamName = () => {
@@ -183,6 +133,11 @@ const fetchGameDetails = async () => {
         if (response.data.players) {
             players.value = response.data.players
             totalPlayers.value = response.data.players.length
+            
+            // Update leaderboard from players list if empty
+            if (leaderboard.value.length === 0) {
+                leaderboard.value = players.value.sort((a, b) => b.score - a.score)
+            }
         }
 
         if (response.data.teams) {
@@ -321,13 +276,24 @@ const connectWebSocket = () => {
       })
 
       // Subscribe to game finished
-      stompClient.value?.subscribe(`/topic/game/${gameId}/finished`, (message) => {
+      stompClient.value?.subscribe(`/topic/game/${gameId}/finished`, async (message) => {
+        console.log("Game Finished received!")
         gameFinished.value = true
         roundFinished.value = true
         showLeaderboard.value = true
         showCorrectAnswer.value = false
-        if (leaderboard.value.length > 0) {
-            winner.value = leaderboard.value[0]
+        
+        // Force refresh leaderboard data from API to ensure we have final scores
+        try {
+            await fetchGameDetails()
+            if (players.value.length > 0) {
+                 leaderboard.value = players.value.sort((a, b) => b.score - a.score)
+            }
+            if (leaderboard.value.length > 0) {
+                winner.value = leaderboard.value[0]
+            }
+        } catch (e) {
+            console.error("Error fetching final details", e)
         }
       })
     },
@@ -361,10 +327,18 @@ const submitAnswer = (index: number) => {
 }
 
 const nextQuestion = () => {
-  stompClient.value?.publish({
-    destination: `/app/game/${gameId}/next`,
-    body: JSON.stringify({})
-  })
+  if (isLastQuestion.value) {
+      // Force close game if it's the last question
+      stompClient.value?.publish({
+        destination: `/app/game/${gameId}/close`,
+        body: JSON.stringify({})
+      })
+  } else {
+      stompClient.value?.publish({
+        destination: `/app/game/${gameId}/next`,
+        body: JSON.stringify({})
+      })
+  }
 }
 
 const toggleView = () => {

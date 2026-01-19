@@ -3,6 +3,7 @@ package com.kubou.interface_adapter.controller;
 import com.kubou.application.repository.GameSessionRepository;
 import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuizRepository;
+import com.kubou.application.service.AchievementService;
 import com.kubou.application.usecase.JoinGameUseCase;
 import com.kubou.application.usecase.NextQuestionUseCase;
 import com.kubou.application.usecase.StartGameUseCase;
@@ -11,12 +12,17 @@ import com.kubou.domain.entity.*;
 import com.kubou.interface_adapter.controller.dto.JoinLobbyRequest;
 import com.kubou.interface_adapter.controller.dto.LeaderboardEntry;
 import com.kubou.interface_adapter.controller.dto.SubmitAnswerRequest;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.security.Principal;
 import java.util.Comparator;
@@ -37,6 +43,7 @@ public class GameController {
     private final QuizRepository quizRepository;
     private final PlayerResponseRepository playerResponseRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final AchievementService achievementService;
 
     public GameController(
             JoinGameUseCase joinGameUseCase,
@@ -46,7 +53,8 @@ public class GameController {
             GameSessionRepository gameSessionRepository,
             QuizRepository quizRepository,
             PlayerResponseRepository playerResponseRepository,
-            SimpMessagingTemplate messagingTemplate
+            SimpMessagingTemplate messagingTemplate,
+            AchievementService achievementService
     ) {
         this.joinGameUseCase = joinGameUseCase;
         this.startGameUseCase = startGameUseCase;
@@ -56,7 +64,25 @@ public class GameController {
         this.quizRepository = quizRepository;
         this.playerResponseRepository = playerResponseRepository;
         this.messagingTemplate = messagingTemplate;
+        this.achievementService = achievementService;
     }
+
+    // --- REST ENDPOINTS FOR ROBUSTNESS ---
+
+    @PostMapping("/api/v1/games/{gameId}/finish-trigger")
+    @ResponseBody
+    @Operation(summary = "Trigger end game logic (badges) manually")
+    public ResponseEntity<Void> triggerFinish(@PathVariable String gameId, Principal principal) {
+        return gameSessionRepository.findById(gameId)
+                .map(session -> {
+                    System.out.println("[REST] Triggering finish logic for game: " + gameId);
+                    achievementService.awardEndGameAchievements(session);
+                    return ResponseEntity.ok().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    // --- WEBSOCKET HANDLERS ---
 
     @MessageMapping("/lobby/join")
     public void joinLobby(@Payload JoinLobbyRequest request, SimpMessageHeaderAccessor headerAccessor) {
@@ -118,8 +144,18 @@ public class GameController {
         GameSession session = nextQuestionUseCase.execute(gameId, principal.getName());
         
         if (session.getState() == GameState.FINISHED) {
+            System.out.println("[GAME_CONTROLLER] END_GAME_HOOK called via nextQuestion for session " + gameId);
             // Send final leaderboard and podium
             broadcastLeaderboard(gameId);
+            
+            // Award End Game Achievements (Safe)
+            try {
+                achievementService.awardEndGameAchievements(session);
+            } catch (Exception e) {
+                System.err.println("[ERROR] Failed to award achievements: " + e.getMessage());
+                e.printStackTrace();
+            }
+            
             messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Game Over!");
         } else if (session.getState() == GameState.QUESTION_RESULTS) {
              // Transitioned to Results (End of Question)
@@ -160,6 +196,14 @@ public class GameController {
 
         // Send immediate ack to user
         messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", score));
+        
+        // Check Real-Time Achievements
+        boolean isCorrect = score > 0; // Heuristic: positive score means correct
+        try {
+            achievementService.checkAndUnlockAchievements(player, userAnswer, isCorrect);
+        } catch (Exception e) {
+            System.err.println("Error checking achievements: " + e.getMessage());
+        }
         
         // Check if all players have answered
         // We need to re-fetch session to get updated state if SubmitAnswerUseCase changed it
@@ -212,8 +256,21 @@ public class GameController {
 
         gameSessionRepository.findById(gameId).ifPresent(session -> {
             if (session.getHostId().equals(principal.getName())) {
+                System.out.println("[GAME_CONTROLLER] END_GAME_HOOK called via closeGame for session " + gameId);
                 session.setState(GameState.FINISHED);
                 gameSessionRepository.save(session);
+                
+                // Send final leaderboard BEFORE finishing so clients have data for podium
+                broadcastLeaderboard(gameId);
+                
+                // Award End Game Achievements (Safe)
+                try {
+                    achievementService.awardEndGameAchievements(session);
+                } catch (Exception e) {
+                    System.err.println("[ERROR] Failed to award achievements: " + e.getMessage());
+                    e.printStackTrace();
+                }
+                
                 messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Session closed by host.");
             }
         });

@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+const router = useRouter()
 const authStore = useAuthStore()
 const achievements = ref<any[]>([])
+const isGuest = ref(false)
+const guestMessage = ref('')
 
-// Metadata for display mapping
+// Metadata for display mapping - ONLY ACTIVE BADGES
 const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string }> = {
     'SNIPER': { 
         label: 'Sniper', 
@@ -20,35 +24,23 @@ const achievementMetadata: Record<string, { label: string, description: string, 
         icon: '⚡',
         color: 'border-yellow-400'
     },
-    'MARATHON': { 
-        label: 'Marathonien', 
-        description: 'Terminer un quiz complet', 
-        icon: '🏃',
-        color: 'border-blue-500'
+    'TURBO': { 
+        label: 'Turbo', 
+        description: '3 réponses rapides (< 5s) d\'affilée', 
+        icon: '🚀',
+        color: 'border-orange-500'
     },
-    'FIRST_GAME': { 
-        label: 'Première Partie', 
-        description: 'Terminer sa première partie', 
-        icon: '🐣',
-        color: 'border-green-400'
+    'COMEBACK': { 
+        label: 'Comeback', 
+        description: 'Bonne réponse après une erreur', 
+        icon: '🛡️',
+        color: 'border-blue-400'
     },
-    'WINNER': { 
-        label: 'Champion', 
-        description: 'Finir premier du classement', 
-        icon: '🥇',
-        color: 'border-yellow-500'
-    },
-    'TOP_3': { 
-        label: 'Podium', 
-        description: 'Finir dans le top 3', 
-        icon: '🏅',
-        color: 'border-gray-400'
-    },
-    'PERFECT': { 
-        label: 'Perfection', 
-        description: '100% de bonnes réponses', 
-        icon: '💎',
-        color: 'border-purple-500'
+    'LUCKY': { 
+        label: 'Chanceux', 
+        description: 'Bonne réponse sur une question difficile', 
+        icon: '🍀',
+        color: 'border-green-500'
     }
 }
 
@@ -73,35 +65,22 @@ const formatDate = (dateInput: any) => {
 const fetchAchievements = async () => {
     try {
         const token = authStore.token
-        
-        // 1. Fetch MY achievements
-        console.log("Fetching MY achievements...")
-        const response = await axios.get('/api/v1/achievements/me', {
+        const response = await axios.get('/api/v1/achievements/status', {
             headers: { Authorization: `Bearer ${token}` }
         })
-        console.log("MY Achievements:", response.data)
-        achievements.value = response.data
-
-        // 2. DEBUG: Fetch ALL achievements to compare IDs
-        console.log("Fetching ALL achievements (DEBUG)...")
-        const debugResponse = await axios.get('/api/v1/achievements/debug', {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-        console.log("ALL Achievements in DB:", debugResponse.data)
         
-        // Check current user ID
-        if (token) {
-            try {
-                const payload = JSON.parse(atob(token.split('.')[1]))
-                console.log("Current User ID (from Token):", payload.sub)
-            } catch (e) {
-                console.error("Error parsing token", e)
-            }
-        }
+        isGuest.value = response.data.guest
+        guestMessage.value = response.data.message
+        achievements.value = response.data.achievements
 
     } catch (error) {
         console.error("Failed to fetch achievements", error)
     }
+}
+
+const goToLogin = () => {
+    authStore.logout()
+    router.push('/login')
 }
 
 onMounted(() => {
@@ -113,13 +92,34 @@ onMounted(() => {
   <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
     <h1 class="text-3xl font-bold text-gray-900 mb-8">Mes Succès</h1>
 
-    <div v-if="achievements.length === 0" class="text-center text-gray-500 py-12 bg-white rounded-lg shadow">
+    <!-- Guest Warning -->
+    <div v-if="isGuest" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-lg shadow-sm">
+        <div class="flex">
+            <div class="flex-shrink-0">
+                <span class="text-2xl">⚠️</span>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-yellow-700 font-bold">
+                    {{ guestMessage }}
+                </p>
+                <div class="mt-4">
+                    <button @click="goToLogin" class="text-sm font-medium text-yellow-700 hover:text-yellow-600 underline">
+                        Créer un compte ou se connecter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State (User) -->
+    <div v-if="!isGuest && achievements.length === 0" class="text-center text-gray-500 py-12 bg-white rounded-lg shadow">
         <div class="text-4xl mb-3">🔒</div>
         <p>Vous n'avez pas encore débloqué de succès.</p>
         <p class="text-sm mt-2">Jouez des parties pour gagner des badges !</p>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Achievements Grid -->
+    <div v-if="achievements.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div v-for="achievement in achievements" :key="achievement.id" 
              class="bg-white overflow-hidden shadow-md rounded-lg border-l-4 transition hover:shadow-lg"
              :class="getMetadata(achievement.type).color">

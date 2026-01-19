@@ -12,6 +12,22 @@ const gamePin = ref('')
 const isGenerating = ref(false)
 const activeSessions = ref<any[]>([])
 const participatingSessions = ref<any[]>([])
+const recentAchievements = ref<any[]>([])
+
+// Metadata for display mapping (Duplicated from AchievementsView for now)
+const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
+    'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'text-red-600', bg: 'bg-red-100' },
+    'FLASH': { label: 'Flash', description: 'Réponse < 1s', icon: '⚡', color: 'text-yellow-600', bg: 'bg-yellow-100' },
+    'MARATHON': { label: 'Marathonien', description: 'Quiz complet', icon: '🏃', color: 'text-blue-600', bg: 'bg-blue-100' },
+    'FIRST_GAME': { label: 'Première Partie', description: 'Bienvenue !', icon: '🐣', color: 'text-green-600', bg: 'bg-green-100' },
+    'WINNER': { label: 'Champion', description: 'Top 1', icon: '🥇', color: 'text-yellow-700', bg: 'bg-yellow-200' },
+    'TOP_3': { label: 'Podium', description: 'Top 3', icon: '🏅', color: 'text-gray-600', bg: 'bg-gray-200' },
+    'PERFECT': { label: 'Perfection', description: '100% Juste', icon: '💎', color: 'text-purple-600', bg: 'bg-purple-100' }
+}
+
+const getMetadata = (type: string) => {
+    return achievementMetadata[type] || { label: type, description: 'Succès', icon: '🏆', color: 'text-gray-600', bg: 'bg-gray-100' }
+}
 
 const joinGame = () => {
   if (gamePin.value.trim()) {
@@ -20,14 +36,12 @@ const joinGame = () => {
 }
 
 const fetchMySessions = async () => {
-    // Only fetch if logged in AND NOT a guest
     if (authStore.isLoggedIn && !authStore.isGuest) {
         try {
             const token = authStore.token
             const response = await axios.get('/api/v1/games/my-sessions', {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            // Filter for active sessions (LOBBY or IN_PROGRESS)
             activeSessions.value = response.data.filter((s: any) => s.state !== 'FINISHED')
         } catch (error) {
             console.error("Failed to fetch sessions", error)
@@ -36,7 +50,6 @@ const fetchMySessions = async () => {
 }
 
 const fetchParticipatingSessions = async () => {
-    // Fetch for ANY logged in user (including guests)
     if (authStore.isLoggedIn) {
         try {
             const token = authStore.token
@@ -50,13 +63,29 @@ const fetchParticipatingSessions = async () => {
     }
 }
 
+const fetchRecentAchievements = async () => {
+    if (authStore.isLoggedIn && !authStore.isGuest) {
+        try {
+            const token = authStore.token
+            const response = await axios.get('/api/v1/achievements/status', {
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            // Take last 3 achievements
+            if (response.data.achievements) {
+                recentAchievements.value = response.data.achievements.slice(-3).reverse()
+            }
+        } catch (error) {
+            console.error("Failed to fetch achievements", error)
+        }
+    }
+}
+
 const resumeSession = (pin: string) => {
     router.push(`/lobby/${pin}`)
 }
 
 const closeSession = async (gameId: string) => {
     if (!confirm("Êtes-vous sûr de vouloir fermer cette session ?")) return;
-
     try {
         const token = authStore.token
         await axios.delete(`/api/v1/games/${gameId}`, {
@@ -71,19 +100,6 @@ const closeSession = async (gameId: string) => {
 
 const leaveSession = async (gameId: string) => {
     if (!confirm("Êtes-vous sûr de vouloir quitter cette partie ?")) return;
-
-    // Since we don't have a REST endpoint for leaving (it's WS based in GameController),
-    // we can either add one or just hide it from the list locally if we assume the user won't rejoin.
-    // However, to be clean, we should probably connect and send the leave message, or add a REST endpoint.
-    // Given the constraints, let's just remove it from the local list for now as a "Hide" feature,
-    // or better, navigate to the lobby and let them click "Leave" if we implemented a leave button there.
-
-    // But the user asked for a button in the list.
-    // Let's use a quick WS connection to send the leave message if possible, or just acknowledge we can't easily do it without a REST endpoint.
-    // Ideally, we should add DELETE /api/v1/games/{id}/players/me
-
-    // For now, let's just navigate them to the lobby where they can leave properly or just ignore it.
-    // Actually, let's just hide it from the view to "clean up" the dashboard.
     participatingSessions.value = participatingSessions.value.filter(s => s.id !== gameId);
 }
 
@@ -92,14 +108,12 @@ const generateSmartReview = async () => {
         alert("Veuillez vous connecter pour utiliser cette fonctionnalité.")
         return
     }
-
     isGenerating.value = true
     try {
         const token = authStore.token
         const response = await axios.post('/api/v1/smart-review/generate', {}, {
             headers: { Authorization: `Bearer ${token}` }
         })
-
         if (response.status === 204) {
             alert("Bravo ! Vous n'avez pas assez d'erreurs pour générer un quiz de rattrapage.")
         } else {
@@ -118,6 +132,7 @@ const generateSmartReview = async () => {
 onMounted(() => {
     fetchMySessions()
     fetchParticipatingSessions()
+    fetchRecentAchievements()
 })
 </script>
 
@@ -203,6 +218,28 @@ onMounted(() => {
                 Entrer dans l'arène
                 </button>
             </form>
+        </div>
+
+        <!-- Achievements Preview (Authenticated & Not Guest) -->
+        <div v-if="recentAchievements.length > 0" class="max-w-2xl mx-auto animate-fade-in-down">
+            <div class="flex items-center justify-between mb-4 px-2">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                    <span class="mr-2">🏆</span> Vos derniers succès
+                </h3>
+                <router-link to="/achievements" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
+                    Voir tout
+                </router-link>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <div v-for="achievement in recentAchievements" :key="achievement.id" 
+                     class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center transform hover:scale-105 transition cursor-pointer"
+                     @click="router.push('/achievements')">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-2xl mb-2" :class="getMetadata(achievement.type).bg">
+                        {{ getMetadata(achievement.type).icon }}
+                    </div>
+                    <span class="text-xs font-bold text-gray-700 truncate w-full">{{ getMetadata(achievement.type).label }}</span>
+                </div>
+            </div>
         </div>
 
         <!-- Action Buttons -->
