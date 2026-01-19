@@ -5,7 +5,6 @@
 
 [![CI/CD](https://github.com/Buco7854/kubou/actions/workflows/build.yml/badge.svg)](https://github.com/Buco7854/kubou/actions)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Buco7854_kubou)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Buco7854_kubou)
 
 ## 📋 Gestion de Projet
 
