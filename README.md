@@ -59,6 +59,12 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
 * **Frontend:** Vue.js 3, TypeScript, TailwindCSS, Pinia.
 * **Data:** PostgreSQL 18, Docker.
 
+### Diagramme de Classe UML
+
+Voici une vue d'ensemble de la structure des classes du projet, illustrant les relations entre les entités du domaine, les services et les adaptateurs d'interface.
+
+![Diagramme de Classe UML](resources/class_diagram.png)
+
 ## 💻 Démarrage (Environnement de Dev)
 
 ### Prérequis
