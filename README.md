@@ -4,7 +4,7 @@
 > Kubou est une plateforme interactive d'apprentissage qui transforme l'évaluation en expérience gamifiée, tout en offrant aux enseignants des outils d'analyse paramétriques avancés.
 
 [![CI/CD](https://github.com/Buco7854/kubou/actions/workflows/build.yml/badge.svg)](https://github.com/Buco7854/kubou/actions)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=alert_status)](https://sonarcloud.io/dashboard?id=Buco7854_kubou)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Buco7854_kubou)
 
 ## 📋 Gestion de Projet
 

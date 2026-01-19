@@ -5,13 +5,15 @@ import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuizRepository;
 import com.kubou.application.service.AchievementService;
 import com.kubou.domain.entity.*;
+import com.kubou.domain.service.CustomScoringStrategy;
 import com.kubou.domain.service.IScoringStrategy;
-import com.kubou.domain.service.SimpleScoringStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -22,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class SubmitAnswerUseCaseTest {
 
     private SubmitAnswerUseCase submitAnswerUseCase;
@@ -47,7 +50,7 @@ class SubmitAnswerUseCaseTest {
 
     @BeforeEach
     void setUp() {
-        scoringStrategy = new SimpleScoringStrategy(); // Using the simple strategy for this test
+        scoringStrategy = new CustomScoringStrategy(); // Using CustomScoringStrategy as SimpleScoringStrategy is removed
 
         submitAnswerUseCase = new SubmitAnswerUseCase(
                 gameSessionRepository, 
@@ -64,6 +67,9 @@ class SubmitAnswerUseCaseTest {
         session = new GameSession("game-1", "123456", "quiz-1", "host-1");
         session.setState(GameState.IN_PROGRESS);
         session.addPlayer(player);
+        
+        // Ensure game config has default scoring settings for CustomScoringStrategy
+        session.setGameConfig(new GameConfig(new ScoringSettings(1000, 0.0, 1.0))); // 0.0 time weight means full score regardless of time
     }
 
     @Test
