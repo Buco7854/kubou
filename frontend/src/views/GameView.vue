@@ -43,6 +43,70 @@ const winner = ref<any>(null)
 const totalQuestions = ref(0)
 const currentQuestionIndex = ref(-1) // Start at -1 so first question (index 0) increments to 0
 const myTeamName = ref<string | null>(null)
+const quizIdRef = ref<string>('') // Store quizId for redirection
+
+// Achievement Metadata (copied from AchievementsView for consistency)
+const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
+    'SNIPER': { 
+        label: 'Sniper', 
+        description: '5 bonnes réponses d\'affilée', 
+        icon: '🎯',
+        color: 'border-red-500',
+        bg: 'from-red-500 to-red-700'
+    },
+    'FLASH': { 
+        label: 'Flash', 
+        description: 'Réponse correcte en moins de 1 seconde', 
+        icon: '⚡',
+        color: 'border-yellow-400',
+        bg: 'from-yellow-400 to-yellow-600'
+    },
+    'MARATHON': { 
+        label: 'Marathonien', 
+        description: 'Terminer un quiz complet', 
+        icon: '🏃',
+        color: 'border-blue-500',
+        bg: 'from-blue-500 to-blue-700'
+    },
+    'FIRST_GAME': { 
+        label: 'Première Partie', 
+        description: 'Terminer sa première partie', 
+        icon: '🐣',
+        color: 'border-green-400',
+        bg: 'from-green-400 to-green-600'
+    },
+    'WINNER': { 
+        label: 'Champion', 
+        description: 'Finir premier du classement', 
+        icon: '🥇',
+        color: 'border-yellow-500',
+        bg: 'from-yellow-500 to-yellow-700'
+    },
+    'TOP_3': { 
+        label: 'Podium', 
+        description: 'Finir dans le top 3', 
+        icon: '🏅',
+        color: 'border-gray-400',
+        bg: 'from-gray-400 to-gray-600'
+    },
+    'PERFECT': { 
+        label: 'Perfection', 
+        description: '100% de bonnes réponses', 
+        icon: '💎',
+        color: 'border-purple-500',
+        bg: 'from-purple-500 to-purple-700'
+    }
+}
+
+const getMetadata = (type: string) => {
+    return achievementMetadata[type] || { 
+        label: type, 
+        description: 'Succès débloqué', 
+        icon: '🏆',
+        color: 'border-yellow-200',
+        bg: 'from-yellow-400 to-yellow-600'
+    }
+}
 
 const updateMyTeamName = () => {
     if (!isHost.value && currentUserId.value && players.value.length > 0) {
@@ -125,6 +189,8 @@ const fetchGameDetails = async () => {
             teams.value = response.data.teams
             updateMyTeamName()
         }
+        
+        quizIdRef.value = response.data.quizId
 
         // Only set index if game is in progress, otherwise keep -1 for Lobby
         if (response.data.state === 'IN_PROGRESS' || response.data.state === 'QUESTION_RESULTS') {
@@ -323,6 +389,18 @@ const returnToHome = () => {
     router.push('/')
 }
 
+const returnToQuiz = () => {
+    if (quizIdRef.value) {
+        router.push(`/quiz/${quizIdRef.value}`)
+    } else {
+        router.push('/')
+    }
+}
+
+const goToAchievements = () => {
+    router.push('/achievements')
+}
+
 const podium = computed(() => {
     return leaderboard.value.slice(0, 3)
 })
@@ -381,11 +459,12 @@ onUnmounted(() => {
     <!-- Achievements Overlay -->
     <div class="absolute top-24 right-4 z-50 space-y-3 pointer-events-none">
         <div v-for="achievement in achievements" :key="achievement.id"
-             class="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white p-4 shadow-2xl rounded-xl animate-slide-in flex items-center space-x-3 border-2 border-yellow-200">
-            <div class="text-3xl">🏆</div>
+             class="bg-gradient-to-r text-white p-4 shadow-2xl rounded-xl animate-slide-in flex items-center space-x-3 border-2"
+             :class="[getMetadata(achievement.type).bg, getMetadata(achievement.type).color]">
+            <div class="text-3xl">{{ getMetadata(achievement.type).icon }}</div>
             <div>
-                <p class="font-bold text-lg">Succès Débloqué !</p>
-                <p class="text-sm opacity-90">{{ achievement.type }}</p>
+                <p class="font-bold text-lg">{{ getMetadata(achievement.type).label }}</p>
+                <p class="text-sm opacity-90">{{ getMetadata(achievement.type).description }}</p>
             </div>
         </div>
     </div>
@@ -468,10 +547,26 @@ onUnmounted(() => {
               </div>
           </div>
 
-          <div class="mt-12">
-              <button @click="returnToHome" class="bg-white text-indigo-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-100 transition shadow-lg">
-                  Retour à l'accueil
-              </button>
+          <div class="mt-12 flex justify-center space-x-4">
+              <!-- Host Actions -->
+              <template v-if="isHost">
+                  <button @click="returnToQuiz" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-xl hover:bg-indigo-700 transition shadow-lg flex items-center">
+                      <span class="mr-2">🔙</span> Retour au Quiz
+                  </button>
+                  <button @click="returnToHome" class="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-lg hover:bg-white/20 transition shadow-lg">
+                      Accueil
+                  </button>
+              </template>
+
+              <!-- Player Actions -->
+              <template v-else>
+                  <button @click="goToAchievements" class="bg-yellow-500 text-yellow-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-yellow-400 transition shadow-lg flex items-center">
+                      <span class="mr-2">🏆</span> Voir mes Succès
+                  </button>
+                  <button @click="returnToHome" class="bg-white text-indigo-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-100 transition shadow-lg flex items-center">
+                      <span class="mr-2">🏠</span> Quitter
+                  </button>
+              </template>
           </div>
       </div>
 

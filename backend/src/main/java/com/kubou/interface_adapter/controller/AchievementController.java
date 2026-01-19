@@ -26,6 +26,15 @@ public class AchievementController {
     @Operation(summary = "Get achievements for the current user")
     public List<PlayerAchievement> getMyAchievements(Principal principal) {
         // Note: principal.getName() returns the user ID (subject) from JWT
-        return achievementRepository.findByPlayerId(principal.getName());
+        System.out.println("Fetching achievements for user: " + principal.getName());
+        List<PlayerAchievement> achievements = achievementRepository.findByPlayerId(principal.getName());
+        System.out.println("Found " + achievements.size() + " achievements.");
+        return achievements;
+    }
+
+    @GetMapping("/debug")
+    @Operation(summary = "DEBUG: List all achievements in DB")
+    public List<PlayerAchievement> debugAllAchievements() {
+        return achievementRepository.findAll();
     }
 }
