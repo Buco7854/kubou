@@ -6,15 +6,11 @@
 [![CI/CD](https://github.com/Buco7854/kubou/actions/workflows/build.yml/badge.svg)](https://github.com/Buco7854/kubou/actions)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=alert_status)](https://sonarcloud.io/dashboard?id=Buco7854_kubou)
 
----
-
 ## 📋 Gestion de Projet
 
 Le suivi des tâches et l'évolution du projet sont gérés via un tableau Kanban GitHub Projects.
 
 👉 **[Accéder au Kanban du Projet](https://github.com/users/Buco7854/projects/2)**
-
----
 
 ## ✨ Fonctionnalités Clés (Core Features)
 
@@ -48,8 +44,6 @@ Le projet s'articule autour de 6 piliers majeurs :
 * Génération automatique de "Quiz de Rattrapage".
 * Analyse l'historique des échecs pour proposer un contenu ciblé sur les lacunes de l'élève.
 
----
-
 ## 🏗️ Architecture Technique
 
 Le projet respecte les principes de la **Clean Architecture** pour isoler la logique métier complexe (Scoring, Smart Review).
@@ -64,8 +58,6 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
 * **Backend:** Java 21, Spring Boot 3, Spring Security (JWT), WebSocket (STOMP).
 * **Frontend:** Vue.js 3, TypeScript, TailwindCSS, Pinia.
 * **Data:** PostgreSQL 18, Docker.
-
----
 
 ## 💻 Démarrage (Environnement de Dev)
 
@@ -95,8 +87,6 @@ Le projet respecte les principes de la **Clean Architecture** pour isoler la log
     npm run dev
     ```
     *Application:* http://localhost:5173
-
----
 
 ## 👤 Contributeurs
 **[Insights]([https://github.com/Buco7854](https://github.com/Buco7854/kubou/graphs/contributors))**.
