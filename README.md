@@ -6,6 +6,11 @@
 [![CI/CD](https://github.com/Buco7854/kubou/actions/workflows/build.yml/badge.svg)](https://github.com/Buco7854/kubou/actions)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Buco7854_kubou&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Buco7854_kubou)
 
+## Outils Similaires / Concurrents
+
+* Wooclap
+* Kahoot
+
 ## 📋 Gestion de Projet
 
 Le suivi des tâches et l'évolution du projet sont gérés via un tableau Kanban GitHub Projects.
