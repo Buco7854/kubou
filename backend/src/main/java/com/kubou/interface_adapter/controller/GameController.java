@@ -13,6 +13,8 @@ import com.kubou.interface_adapter.controller.dto.JoinLobbyRequest;
 import com.kubou.interface_adapter.controller.dto.LeaderboardEntry;
 import com.kubou.interface_adapter.controller.dto.SubmitAnswerRequest;
 import io.swagger.v3.oas.annotations.Operation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -34,6 +36,8 @@ import java.util.stream.Collectors;
 
 @Controller
 public class GameController {
+
+    private static final Logger logger = LoggerFactory.getLogger(GameController.class);
 
     private final JoinGameUseCase joinGameUseCase;
     private final StartGameUseCase startGameUseCase;
@@ -75,7 +79,7 @@ public class GameController {
     public ResponseEntity<Void> triggerFinish(@PathVariable String gameId, Principal principal) {
         return gameSessionRepository.findById(gameId)
                 .map(session -> {
-                    System.out.println("[REST] Triggering finish logic for game: " + gameId);
+                    logger.info("[REST] Triggering finish logic for game: {}", gameId);
                     achievementService.awardEndGameAchievements(session);
                     return ResponseEntity.ok().<Void>build();
                 })
@@ -144,7 +148,7 @@ public class GameController {
         GameSession session = nextQuestionUseCase.execute(gameId, principal.getName());
         
         if (session.getState() == GameState.FINISHED) {
-            System.out.println("[GAME_CONTROLLER] END_GAME_HOOK called via nextQuestion for session " + gameId);
+            logger.info("[GAME_CONTROLLER] END_GAME_HOOK called via nextQuestion for session {}", gameId);
             // Send final leaderboard and podium
             broadcastLeaderboard(gameId);
             
@@ -152,8 +156,7 @@ public class GameController {
             try {
                 achievementService.awardEndGameAchievements(session);
             } catch (Exception e) {
-                System.err.println("[ERROR] Failed to award achievements: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Failed to award achievements for gameId: {}", gameId, e);
             }
             
             messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Game Over!");
@@ -202,7 +205,7 @@ public class GameController {
         try {
             achievementService.checkAndUnlockAchievements(player, userAnswer, isCorrect);
         } catch (Exception e) {
-            System.err.println("Error checking achievements: " + e.getMessage());
+            logger.error("Error checking achievements for gameId: {}", gameId, e);
         }
         
         // Check if all players have answered
@@ -256,7 +259,7 @@ public class GameController {
 
         gameSessionRepository.findById(gameId).ifPresent(session -> {
             if (session.getHostId().equals(principal.getName())) {
-                System.out.println("[GAME_CONTROLLER] END_GAME_HOOK called via closeGame for session " + gameId);
+                logger.info("[GAME_CONTROLLER] END_GAME_HOOK called via closeGame for session {}", gameId);
                 session.setState(GameState.FINISHED);
                 gameSessionRepository.save(session);
                 
@@ -267,8 +270,7 @@ public class GameController {
                 try {
                     achievementService.awardEndGameAchievements(session);
                 } catch (Exception e) {
-                    System.err.println("[ERROR] Failed to award achievements: " + e.getMessage());
-                    e.printStackTrace();
+                    logger.error("Failed to award achievements for gameId: {}", gameId, e);
                 }
                 
                 messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Session closed by host.");
