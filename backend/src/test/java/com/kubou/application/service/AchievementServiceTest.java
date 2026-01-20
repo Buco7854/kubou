@@ -1,9 +1,7 @@
 package com.kubou.application.service;
 
 import com.kubou.application.repository.PlayerAchievementRepository;
-import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuestionRepository;
-import com.kubou.application.repository.QuizRepository;
 import com.kubou.domain.entity.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,10 +26,6 @@ class AchievementServiceTest {
 
     @Mock
     private PlayerAchievementRepository achievementRepository;
-    @Mock
-    private PlayerResponseRepository playerResponseRepository;
-    @Mock
-    private QuizRepository quizRepository;
     @Mock
     private QuestionRepository questionRepository;
     @Mock
@@ -89,20 +83,6 @@ class AchievementServiceTest {
         Player player = new Player("p1", "user1", "Nick");
         player.setCurrentStreak(3);
         UserAnswer answer = new UserAnswer("p1", "q1", 0, 4000); // < 5s
-
-        when(achievementRepository.findByPlayerId("user1")).thenReturn(new ArrayList<>());
-
-        achievementService.checkAndUnlockAchievements(player, answer, true);
-
-        verify(achievementRepository, atLeastOnce()).save(any(PlayerAchievement.class));
-    }
-
-    @Test
-    void checkAndUnlockAchievements_ShouldUnlockComeback_WhenStreak1AndScorePositive() {
-        Player player = new Player("p1", "user1", "Nick");
-        player.setCurrentStreak(1);
-        player.setScore(200);
-        UserAnswer answer = new UserAnswer("p1", "q1", 0, 6000);
 
         when(achievementRepository.findByPlayerId("user1")).thenReturn(new ArrayList<>());
 

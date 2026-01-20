@@ -1,6 +1,5 @@
 package com.kubou.interface_adapter.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kubou.application.repository.GameSessionRepository;
 import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuizRepository;
@@ -13,7 +12,6 @@ import com.kubou.domain.entity.GameSession;
 import com.kubou.domain.entity.GameState;
 import com.kubou.domain.entity.Player;
 import com.kubou.domain.entity.Quiz;
-import com.kubou.infrastructure.security.JwtTokenProvider;
 import com.kubou.interface_adapter.controller.dto.JoinLobbyRequest;
 import com.kubou.interface_adapter.controller.dto.SubmitAnswerRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -128,25 +126,37 @@ class GameControllerTest {
     }
 
     @Test
-    void submitAnswer_ShouldProcess_WhenUserIsPlayer() {
+    void submitAnswer_ShouldBroadcastProgress_WhenUserIsPlayer() {
+        // Arrange
         Principal principal = mock(Principal.class);
         when(principal.getName()).thenReturn("player1");
         
         GameSession session = new GameSession("g1", "123456", "q1", "host");
+        session.setCurrentQuestionIndex(0);
         Player player = new Player("p1", "player1", "Nick");
         session.getPlayers().add(player);
         
+        Quiz quiz = new Quiz("q1", "Title", new ArrayList<>());
+        quiz.getQuestions().add(new com.kubou.domain.entity.Question("q1", "Text", Collections.emptyList(), 0, Collections.emptyList(), 1));
+        
         when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
+        when(quizRepository.findById("q1")).thenReturn(Optional.of(quiz));
         when(submitAnswerUseCase.execute(anyString(), any())).thenReturn(100);
+        when(playerResponseRepository.findByGameSessionIdAndQuestionId("g1", "q1")).thenReturn(Collections.emptyList());
         
         SubmitAnswerRequest request = new SubmitAnswerRequest();
         request.setQuestionId("q1");
         request.setAnswerIndex(0);
         request.setTimeToAnswerMs(1000);
 
+        // Act
         gameController.submitAnswer("g1", request, principal);
 
+        // Assert
         verify(submitAnswerUseCase).execute(eq("g1"), any());
-        verify(achievementService).checkAndUnlockAchievements(any(), any(), eq(true));
+        // Verify progress broadcast
+        verify(messagingTemplate).convertAndSend(eq("/topic/game/g1/progress"), any(Map.class));
+        // Verify host notification
+        verify(messagingTemplate).convertAndSend(eq("/topic/game/g1/host/answer_received"), any(Map.class));
     }
 }

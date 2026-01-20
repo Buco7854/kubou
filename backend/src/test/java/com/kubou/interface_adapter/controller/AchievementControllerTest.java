@@ -80,7 +80,9 @@ class AchievementControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.guest").value(false))
-                .andExpect(jsonPath("$.achievements[0].type").value("FLASH"));
+                .andExpect(jsonPath("$.achievements").isArray())
+                .andExpect(jsonPath("$.achievements[?(@.type == 'FLASH')].unlocked").value(true))
+                .andExpect(jsonPath("$.achievements[?(@.type == 'SNIPER')].unlocked").value(false));
     }
 
     @Test

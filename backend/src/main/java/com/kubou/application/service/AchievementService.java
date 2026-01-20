@@ -1,10 +1,10 @@
 package com.kubou.application.service;
 
 import com.kubou.application.repository.PlayerAchievementRepository;
-import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuestionRepository;
-import com.kubou.application.repository.QuizRepository;
 import com.kubou.domain.entity.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,22 +16,18 @@ import java.util.UUID;
 @Service
 public class AchievementService {
 
+    private static final Logger logger = LoggerFactory.getLogger(AchievementService.class);
+
     private final PlayerAchievementRepository achievementRepository;
-    private final PlayerResponseRepository playerResponseRepository;
-    private final QuizRepository quizRepository;
     private final QuestionRepository questionRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     public AchievementService(
             PlayerAchievementRepository achievementRepository,
-            PlayerResponseRepository playerResponseRepository,
-            QuizRepository quizRepository,
             QuestionRepository questionRepository,
             SimpMessagingTemplate messagingTemplate
     ) {
         this.achievementRepository = achievementRepository;
-        this.playerResponseRepository = playerResponseRepository;
-        this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
         this.messagingTemplate = messagingTemplate;
     }
@@ -42,12 +38,21 @@ public class AchievementService {
 
     @Transactional
     public void checkAndUnlockAchievements(Player player, UserAnswer userAnswer, boolean isCorrect) {
-        String subjectId = player.getUserId() != null ? player.getUserId() : player.getId();
+        // CRITIQUE : On utilise le userId (le compte utilisateur) pour la persistance.
+        String subjectId = player.getUserId();
+        
+        if (subjectId == null) {
+            // Fallback sur l'ID joueur si pas de compte lié (ne devrait pas arriver pour un user connecté)
+            // Mais pour la page "Mes succès", seul le userId compte.
+            logger.warn("Achievement check skipped or degraded: Player {} has no User ID linked.", player.getId());
+            return;
+        }
         
         if (isGuest(subjectId)) {
             return;
         }
 
+        // On cherche les succès liés au COMPTE UTILISATEUR
         List<PlayerAchievement> existingAchievements = achievementRepository.findByPlayerId(subjectId);
 
         // SNIPER (5 correct in a row)
@@ -65,11 +70,6 @@ public class AchievementService {
             unlockIfNotExists(subjectId, AchievementType.TURBO, existingAchievements);
         }
 
-        // COMEBACK (Correct after being at 0 streak)
-        if (isCorrect && player.getCurrentStreak() == 1 && player.getScore() > 100) { 
-             unlockIfNotExists(subjectId, AchievementType.COMEBACK, existingAchievements);
-        }
-
         // LUCKY (Correct on Difficulty 5)
         if (isCorrect) {
             questionRepository.findById(userAnswer.getQuestionId()).ifPresent(question -> {
@@ -82,28 +82,31 @@ public class AchievementService {
 
     // End Game Achievements DISABLED
     public void awardEndGameAchievements(GameSession session) {
-        // No-op: Badges like WINNER, TOP_3, PERFECT, FIRST_GAME, MARATHON are disabled.
+        // No-op
     }
 
     private void unlockIfNotExists(String subjectId, AchievementType type, List<PlayerAchievement> existing) {
         boolean alreadyUnlocked = existing.stream().anyMatch(a -> a.getType() == type);
         if (!alreadyUnlocked) {
+            logger.info("Unlocking achievement {} for user {}", type, subjectId);
+            
             PlayerAchievement achievement = new PlayerAchievement(
                     UUID.randomUUID().toString(),
-                    subjectId,
+                    subjectId, // On sauvegarde bien avec l'ID du compte
                     type,
                     LocalDateTime.now()
             );
             achievementRepository.save(achievement);
             
             try {
+                // On notifie l'utilisateur sur son canal privé
                 messagingTemplate.convertAndSendToUser(
                         subjectId, 
                         "/queue/achievements", 
                         achievement
                 );
             } catch (Exception e) {
-                // Ignore WS errors
+                logger.error("Failed to send achievement notification", e);
             }
             
             existing.add(achievement);

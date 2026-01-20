@@ -5,7 +5,6 @@ public enum AchievementType {
     SNIPER("Sniper", "5 bonnes réponses d'affilée"),
     FLASH("Flash", "Réponse correcte en moins de 1 seconde"),
     TURBO("Turbo", "3 bonnes réponses rapides (< 5s) d'affilée"),
-    COMEBACK("Comeback", "Bonne réponse après une erreur"),
     LUCKY("Lucky", "Bonne réponse sur une question difficile (Niveau 5)");
 
     private final String name;
