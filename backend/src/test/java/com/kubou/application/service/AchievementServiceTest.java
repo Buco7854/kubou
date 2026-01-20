@@ -12,8 +12,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -54,6 +56,23 @@ class AchievementServiceTest {
     }
 
     @Test
+    void checkAndUnlockAchievements_ShouldNotUnlock_WhenAlreadyExists() {
+        Player player = new Player("p1", "user1", "Nick");
+        player.setCurrentStreak(5);
+        UserAnswer answer = new UserAnswer("p1", "q1", 0, 6000);
+
+        PlayerAchievement existing = new PlayerAchievement("1", "user1", AchievementType.SNIPER, LocalDateTime.now());
+        List<PlayerAchievement> list = new ArrayList<>();
+        list.add(existing);
+
+        when(achievementRepository.findByPlayerId("user1")).thenReturn(list);
+
+        achievementService.checkAndUnlockAchievements(player, answer, true);
+
+        verify(achievementRepository, never()).save(any(PlayerAchievement.class));
+    }
+
+    @Test
     void checkAndUnlockAchievements_ShouldUnlockFlash_WhenTimeIsUnder1s() {
         Player player = new Player("p1", "user1", "Nick");
         UserAnswer answer = new UserAnswer("p1", "q1", 0, 500); // 500ms
@@ -62,9 +81,6 @@ class AchievementServiceTest {
 
         achievementService.checkAndUnlockAchievements(player, answer, true);
 
-        // Might unlock FLASH and TURBO (if streak >= 3, but here streak is 0)
-        // Wait, TURBO requires streak >= 3. Here streak is 0.
-        // So only FLASH.
         verify(achievementRepository, times(1)).save(any(PlayerAchievement.class));
     }
 

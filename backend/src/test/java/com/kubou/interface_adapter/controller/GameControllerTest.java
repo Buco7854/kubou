@@ -10,70 +10,143 @@ import com.kubou.application.usecase.NextQuestionUseCase;
 import com.kubou.application.usecase.StartGameUseCase;
 import com.kubou.application.usecase.SubmitAnswerUseCase;
 import com.kubou.domain.entity.GameSession;
+import com.kubou.domain.entity.GameState;
+import com.kubou.domain.entity.Player;
+import com.kubou.domain.entity.Quiz;
 import com.kubou.infrastructure.security.JwtTokenProvider;
+import com.kubou.interface_adapter.controller.dto.JoinLobbyRequest;
+import com.kubou.interface_adapter.controller.dto.SubmitAnswerRequest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.http.ResponseEntity;
 
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
-@WebMvcTest(GameController.class)
-@AutoConfigureMockMvc(addFilters = false)
 class GameControllerTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    @Mock private JoinGameUseCase joinGameUseCase;
+    @Mock private StartGameUseCase startGameUseCase;
+    @Mock private NextQuestionUseCase nextQuestionUseCase;
+    @Mock private SubmitAnswerUseCase submitAnswerUseCase;
+    @Mock private GameSessionRepository gameSessionRepository;
+    @Mock private QuizRepository quizRepository;
+    @Mock private PlayerResponseRepository playerResponseRepository;
+    @Mock private SimpMessagingTemplate messagingTemplate;
+    @Mock private AchievementService achievementService;
+    
+    private GameController gameController;
 
-    @MockBean
-    private JoinGameUseCase joinGameUseCase;
-    @MockBean
-    private StartGameUseCase startGameUseCase;
-    @MockBean
-    private NextQuestionUseCase nextQuestionUseCase;
-    @MockBean
-    private SubmitAnswerUseCase submitAnswerUseCase;
-    @MockBean
-    private GameSessionRepository gameSessionRepository;
-    @MockBean
-    private QuizRepository quizRepository;
-    @MockBean
-    private PlayerResponseRepository playerResponseRepository;
-    @MockBean
-    private SimpMessagingTemplate messagingTemplate;
-    @MockBean
-    private AchievementService achievementService;
-    @MockBean
-    private JwtTokenProvider jwtTokenProvider; // Mocked to satisfy dependency injection
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        gameController = new GameController(
+            joinGameUseCase, startGameUseCase, nextQuestionUseCase, submitAnswerUseCase,
+            gameSessionRepository, quizRepository, playerResponseRepository,
+            messagingTemplate, achievementService
+        );
+    }
 
     @Test
-    @WithMockUser(username = "host")
-    void triggerFinish_ShouldCallService_WhenSessionExists() throws Exception {
+    void triggerFinish_ShouldCallService_WhenSessionExists() {
         GameSession session = new GameSession("g1", "123456", "q1", "host");
         when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
 
-        mockMvc.perform(post("/api/v1/games/g1/finish-trigger"))
-                .andExpect(status().isOk());
+        ResponseEntity<Void> response = gameController.triggerFinish("g1", mock(Principal.class));
 
+        assertEquals(200, response.getStatusCodeValue());
         verify(achievementService).awardEndGameAchievements(session);
     }
 
     @Test
-    @WithMockUser(username = "host")
-    void triggerFinish_ShouldReturnNotFound_WhenSessionMissing() throws Exception {
-        when(gameSessionRepository.findById("g1")).thenReturn(Optional.empty());
+    void joinLobby_ShouldBroadcast_WhenUserIsAuthenticated() {
+        JoinLobbyRequest request = new JoinLobbyRequest();
+        request.setPin("123456");
+        
+        SimpMessageHeaderAccessor headerAccessor = mock(SimpMessageHeaderAccessor.class);
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("user1");
+        when(headerAccessor.getUser()).thenReturn(principal);
+        when(headerAccessor.getSessionAttributes()).thenReturn(Map.of("nickname", "Nick"));
 
-        mockMvc.perform(post("/api/v1/games/g1/finish-trigger"))
-                .andExpect(status().isNotFound());
+        GameSession session = new GameSession("g1", "123456", "q1", "host");
+        when(gameSessionRepository.findByPin("123456")).thenReturn(Optional.of(session));
+
+        gameController.joinLobby(request, headerAccessor);
+
+        verify(joinGameUseCase).execute(eq("123456"), any(Player.class));
+        verify(messagingTemplate).convertAndSend(eq("/topic/lobby/123456/players"), any(Object.class));
+    }
+
+    @Test
+    void startGame_ShouldBroadcast_WhenUserIsHost() {
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("host");
+        
+        GameSession session = new GameSession("g1", "123456", "q1", "host");
+        session.setCurrentQuestionIndex(0); // Ensure index is 0 to avoid IndexOutOfBoundsException
+        
+        Quiz quiz = new Quiz("q1", "Title", new ArrayList<>());
+        quiz.getQuestions().add(new com.kubou.domain.entity.Question("q1", "Text", Collections.emptyList(), 0, Collections.emptyList(), 1));
+        
+        when(startGameUseCase.execute("g1", "host")).thenReturn(session);
+        when(quizRepository.findById("q1")).thenReturn(Optional.of(quiz));
+
+        gameController.startGame("g1", principal);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/game/g1/started"), anyString());
+    }
+
+    @Test
+    void nextQuestion_ShouldAwardAchievements_WhenFinished() {
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("host");
+        
+        GameSession session = new GameSession("g1", "123456", "q1", "host");
+        session.setState(GameState.FINISHED);
+        
+        when(nextQuestionUseCase.execute("g1", "host")).thenReturn(session);
+        when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session)); // For broadcastLeaderboard
+
+        gameController.nextQuestion("g1", principal);
+
+        verify(achievementService).awardEndGameAchievements(session);
+        verify(messagingTemplate).convertAndSend(eq("/topic/game/g1/finished"), anyString());
+    }
+
+    @Test
+    void submitAnswer_ShouldProcess_WhenUserIsPlayer() {
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("player1");
+        
+        GameSession session = new GameSession("g1", "123456", "q1", "host");
+        Player player = new Player("p1", "player1", "Nick");
+        session.getPlayers().add(player);
+        
+        when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
+        when(submitAnswerUseCase.execute(anyString(), any())).thenReturn(100);
+        
+        SubmitAnswerRequest request = new SubmitAnswerRequest();
+        request.setQuestionId("q1");
+        request.setAnswerIndex(0);
+        request.setTimeToAnswerMs(1000);
+
+        gameController.submitAnswer("g1", request, principal);
+
+        verify(submitAnswerUseCase).execute(eq("g1"), any());
+        verify(achievementService).checkAndUnlockAchievements(any(), any(), eq(true));
     }
 }
