@@ -1,19 +1,17 @@
 package com.kubou.interface_adapter.controller;
 
 import com.kubou.application.service.SmartReviewService;
-import com.kubou.domain.entity.Quiz;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import com.kubou.domain.entity.Question;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.security.Principal;
+import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/smart-review")
-@SecurityRequirement(name = "bearerAuth")
+@RequestMapping("/api/smart-review")
 public class SmartReviewController {
 
     private final SmartReviewService smartReviewService;
@@ -22,11 +20,12 @@ public class SmartReviewController {
         this.smartReviewService = smartReviewService;
     }
 
-    @PostMapping("/generate")
-    @Operation(summary = "Generate a review quiz based on past mistakes")
-    public ResponseEntity<Quiz> generateReview(Principal principal) {
-        return smartReviewService.generateReviewQuiz(principal.getName())
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.noContent().build());
+    @GetMapping("/{playerId}")
+    public ResponseEntity<List<Question>> getCatchUpQuiz(@PathVariable String playerId) {
+        List<Question> catchUpQuiz = smartReviewService.createCatchUpQuiz(playerId);
+        if (catchUpQuiz.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(catchUpQuiz);
     }
 }
