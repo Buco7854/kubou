@@ -36,4 +36,12 @@ public class PlayerAchievementRepositoryImpl implements PlayerAchievementReposit
                 .map(mapper::toDomain)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PlayerAchievement> findAll() {
+        return jpaRepository.findAll().stream()
+                .map(mapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }
