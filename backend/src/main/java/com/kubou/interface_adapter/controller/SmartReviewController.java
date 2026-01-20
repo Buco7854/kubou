@@ -25,11 +25,8 @@ public class SmartReviewController {
     @PostMapping("/generate")
     @Operation(summary = "Generate a review quiz based on past mistakes")
     public ResponseEntity<Quiz> generateReview(Principal principal) {
-        try {
-            Quiz quiz = smartReviewService.generateReviewQuiz(principal.getName());
-            return ResponseEntity.ok(quiz);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build(); // Or return specific error message
-        }
+        return smartReviewService.generateReviewQuiz(principal.getName())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

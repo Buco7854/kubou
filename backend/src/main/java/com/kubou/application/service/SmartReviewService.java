@@ -19,37 +19,46 @@ public class SmartReviewService {
     private final QuestionRepository questionRepository;
     private final QuizRepository quizRepository;
 
-    public SmartReviewService(PlayerResponseRepository responseRepository, QuestionRepository questionRepository, QuizRepository quizRepository) {
+    public SmartReviewService(PlayerResponseRepository responseRepository,
+                              QuestionRepository questionRepository,
+                              QuizRepository quizRepository) {
         this.responseRepository = responseRepository;
         this.questionRepository = questionRepository;
         this.quizRepository = quizRepository;
     }
 
-    public Quiz generateReviewQuiz(String playerId) {
-        // Look at last 30 days
+    public Optional<Quiz> generateReviewQuiz(String playerId) {
         LocalDateTime start = LocalDateTime.now().minusDays(30);
         LocalDateTime end = LocalDateTime.now();
-        
-        List<PlayerResponse> responses = responseRepository.findByPlayerIdAndDateRange(playerId, start, end);
-        
-        // Filter for incorrect answers
-        List<String> incorrectQuestionIds = responses.stream()
+
+        List<PlayerResponse> responses =
+                responseRepository.findByPlayerIdAndDateRange(playerId, start, end);
+
+
+        // Count wrong answers per question
+        Map<String, Long> wrongCounts = responses.stream()
                 .filter(r -> !r.isCorrect())
-                .map(PlayerResponse::getQuestionId)
-                .distinct()
-                .collect(Collectors.toList());
-        
-        if (incorrectQuestionIds.isEmpty()) {
-            throw new RuntimeException("No incorrect answers found to review!");
+                .collect(Collectors.groupingBy(PlayerResponse::getQuestionId, Collectors.counting()));
+
+        List<String> topQuestionIds = wrongCounts.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue(), a.getValue()))
+                .limit(10)
+                .map(Map.Entry::getKey)
+                .toList();
+
+        if (topQuestionIds.isEmpty()) {
+            return Optional.empty();
         }
-        
-        // Fetch full question objects
-        List<Question> questionsToReview = questionRepository.findAllById(incorrectQuestionIds);
-        
-        // Create a new Quiz
+
+        List<Question> questionsToReview = questionRepository.findAllById(topQuestionIds);
+
+        if (questionsToReview.isEmpty()) {
+            return Optional.empty();
+        }
+
         String title = "Smart Review - " + LocalDateTime.now().toLocalDate();
         Quiz reviewQuiz = new Quiz(UUID.randomUUID().toString(), title, questionsToReview);
-        
-        return quizRepository.save(reviewQuiz);
+
+        return Optional.of(quizRepository.save(reviewQuiz));
     }
 }
