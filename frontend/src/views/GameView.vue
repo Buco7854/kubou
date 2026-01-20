@@ -196,7 +196,8 @@ const connectWebSocket = () => {
       return
   }
 
-  const socket = new SockJS('http://localhost:8080/ws')
+  // Use relative path for WebSocket connection to work with Nginx proxy
+  const socket = new SockJS('/ws')
 
   stompClient.value = new Client({
     webSocketFactory: () => socket,
