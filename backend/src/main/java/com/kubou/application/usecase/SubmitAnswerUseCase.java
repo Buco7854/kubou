@@ -80,7 +80,7 @@ public class SubmitAnswerUseCase {
         PlayerResponse response = new PlayerResponse(
                 UUID.randomUUID().toString(),
                 gameId,
-                player.getUserId(), // Changed from player.getId() to player.getUserId()
+                player.getId(), // Reverted to player.getId() to ensure consistency with session logic
                 question.getId(),
                 userAnswer.getAnswerIndex(),
                 isCorrect,
