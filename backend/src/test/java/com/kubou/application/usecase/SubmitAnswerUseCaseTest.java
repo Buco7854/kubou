@@ -72,4 +72,34 @@ class SubmitAnswerUseCaseTest {
         verify(gameSessionRepository).save(session);
         verify(playerResponseRepository).save(any(PlayerResponse.class));
     }
+
+    @Test
+    void execute_ShouldHandleGameNotInProgress() {
+        // Arrange
+        String gameId = "g1";
+        String playerId = "p1";
+        String questionId = "q1";
+        
+        GameSession session = new GameSession(gameId, "123", "quiz1", "host");
+        session.setState(GameState.FINISHED); // Not IN_PROGRESS
+        Player player = new Player(playerId, "user1", "Nick");
+        session.getPlayers().add(player);
+        
+        Quiz quiz = new Quiz("quiz1", "Title", new ArrayList<>());
+        Question question = new Question(questionId, "Text", Collections.emptyList(), 0, Collections.emptyList(), 1);
+        quiz.getQuestions().add(question);
+        
+        UserAnswer userAnswer = new UserAnswer(playerId, questionId, 0, 1000);
+        
+        when(gameSessionRepository.findById(gameId)).thenReturn(Optional.of(session));
+        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
+        when(scoringStrategy.calculate(any(), any(), any(), anyInt())).thenReturn(100);
+        
+        // Act
+        SubmitAnswerResult result = submitAnswerUseCase.execute(gameId, userAnswer);
+
+        // Assert
+        assertEquals(100, result.getScore());
+        verify(gameSessionRepository).save(session);
+    }
 }

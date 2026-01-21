@@ -117,6 +117,16 @@ class AchievementServiceTest {
     }
 
     @Test
+    void checkAndUnlockAchievements_ShouldSkip_WhenUserIdIsNull() {
+        Player player = new Player("p1", null, "NoUser");
+        UserAnswer answer = new UserAnswer("p1", "q1", 0, 500);
+
+        achievementService.checkAndUnlockAchievements(player, answer, true);
+
+        verify(achievementRepository, never()).save(any());
+    }
+
+    @Test
     void awardEndGameAchievements_ShouldDoNothing_AsDisabled() {
         GameSession session = new GameSession("g1", "123456", "q1", "host");
         achievementService.awardEndGameAchievements(session);

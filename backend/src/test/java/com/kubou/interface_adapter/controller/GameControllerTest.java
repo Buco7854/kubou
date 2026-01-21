@@ -164,4 +164,74 @@ class GameControllerTest {
         // Verify host notification
         verify(messagingTemplate).convertAndSend(eq("/topic/game/g1/host/answer_received"), any(Map.class));
     }
+
+    @Test
+    void submitAnswer_ShouldHandleUseCaseException() {
+        // Arrange
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("player1");
+        
+        when(gameSessionRepository.findById(anyString())).thenThrow(new RuntimeException("DB Error"));
+
+        SubmitAnswerRequest request = new SubmitAnswerRequest();
+        request.setQuestionId("q1");
+
+        // Act
+        gameController.submitAnswer("g1", request, principal);
+
+        // Assert
+        verify(submitAnswerUseCase, never()).execute(anyString(), any());
+    }
+
+    @Test
+    void submitAnswer_ShouldHandleAchievementException() {
+        // Arrange
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("player1");
+        
+        GameSession session = new GameSession("g1", "123", "q1", "host");
+        session.setCurrentQuestionIndex(0);
+        Player player = new Player("p1", "player1", "Nick");
+        session.getPlayers().add(player);
+        
+        Quiz quiz = new Quiz("q1", "Title", new ArrayList<>());
+        quiz.getQuestions().add(new com.kubou.domain.entity.Question("q1", "Text", Collections.emptyList(), 0, Collections.emptyList(), 1));
+        
+        when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
+        when(quizRepository.findById("q1")).thenReturn(Optional.of(quiz));
+        
+        SubmitAnswerResult result = new SubmitAnswerResult(100, false, true);
+        when(submitAnswerUseCase.execute(anyString(), any())).thenReturn(result);
+        
+        doThrow(new RuntimeException("Achievement Error")).when(achievementService).checkAndUnlockAchievements(any(), any(), anyBoolean());
+        
+        SubmitAnswerRequest request = new SubmitAnswerRequest();
+        request.setQuestionId("q1");
+        request.setAnswerIndex(0);
+
+        // Act
+        gameController.submitAnswer("g1", request, principal);
+
+        // Assert
+        verify(submitAnswerUseCase).execute(eq("g1"), any());
+        verify(messagingTemplate).convertAndSendToUser(eq("player1"), eq("/queue/result"), any(Map.class));
+    }
+
+    @Test
+    void submitAnswer_ShouldDoNothing_WhenUserIsHost() {
+        // Arrange
+        Principal principal = mock(Principal.class);
+        when(principal.getName()).thenReturn("host");
+        
+        GameSession session = new GameSession("g1", "123", "q1", "host");
+        when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
+
+        SubmitAnswerRequest request = new SubmitAnswerRequest();
+
+        // Act
+        gameController.submitAnswer("g1", request, principal);
+
+        // Assert
+        verify(submitAnswerUseCase, never()).execute(anyString(), any());
+    }
 }

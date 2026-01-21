@@ -98,14 +98,4 @@ class AchievementControllerTest {
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.achievements").isEmpty());
     }
-
-    @Test
-    void debugAllAchievements_ShouldReturnList() throws Exception {
-        when(achievementRepository.findAll()).thenReturn(Collections.emptyList());
-
-        mockMvc.perform(get("/api/v1/achievements/debug")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
-    }
 }

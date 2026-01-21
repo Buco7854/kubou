@@ -75,11 +75,4 @@ public class AchievementController {
             allAchievements
         );
     }
-
-    // DEBUG ENDPOINT - TO BE REMOVED LATER
-    @GetMapping("/debug")
-    @Operation(summary = "DEBUG: List all achievements in DB")
-    public List<PlayerAchievement> debugAllAchievements() {
-        return achievementRepository.findAll();
-    }
 }
