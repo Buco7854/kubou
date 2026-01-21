@@ -51,7 +51,6 @@ const achievementMetadata: Record<string, { label: string, description: string, 
     'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'border-red-500', bg: 'from-red-500 to-red-700' },
     'FLASH': { label: 'Flash', description: 'Réponse correcte en moins de 1 seconde', icon: '⚡', color: 'border-yellow-400', bg: 'from-yellow-400 to-yellow-600' },
     'TURBO': { label: 'Turbo', description: '3 réponses rapides (< 5s) d\'affilée', icon: '🚀', color: 'border-orange-500', bg: 'from-orange-500 to-orange-700' },
-    'COMEBACK': { label: 'Comeback', description: 'Bonne réponse après une erreur', icon: '🛡️', color: 'border-blue-400', bg: 'from-blue-400 to-blue-600' },
     'LUCKY': { label: 'Chanceux', description: 'Bonne réponse sur une question difficile', icon: '🍀', color: 'border-green-500', bg: 'from-green-500 to-green-700' }
 }
 
@@ -128,7 +127,27 @@ const handleNewQuestion = (question: any) => {
         currentQuestion.value = question
         currentQuestionIndex.value++
         resetRound(question.startTime)
+        // Fetch progress immediately to sync state (in case of rejoin or delay)
+        if (isHost.value) {
+            fetchProgress()
+        }
     }, 3000)
+}
+
+const fetchProgress = async () => {
+    if (!isHost.value) return
+    try {
+        const token = authStore.token
+        const response = await axios.get(`/api/v1/games/${gameId}/progress`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        if (response.data) {
+            answeredCount.value = response.data.answeredCount
+            totalPlayers.value = response.data.totalPlayers
+        }
+    } catch (error) {
+        console.error("Failed to fetch progress", error)
+    }
 }
 
 const fetchGameDetails = async () => {
@@ -220,6 +239,9 @@ const fetchGameDetails = async () => {
                      } else {
                          currentQuestion.value = questionData
                          resetRound(startTime)
+                         if (isHost.value) {
+                           fetchProgress()
+                         }
                      }
                  }
              }
@@ -305,6 +327,14 @@ const connectWebSocket = () => {
       stompClient.value?.subscribe(`/user/queue/achievements`, (message) => {
         const achievement = JSON.parse(message.body)
         achievements.value.push(achievement)
+        
+        // SAVE TO LOCAL STORAGE FOR SYNC
+        const recentlyUnlocked = JSON.parse(localStorage.getItem('recentlyUnlockedAchievements') || '[]')
+        if (!recentlyUnlocked.includes(achievement.type)) {
+            recentlyUnlocked.push(achievement.type)
+            localStorage.setItem('recentlyUnlockedAchievements', JSON.stringify(recentlyUnlocked))
+        }
+
         setTimeout(() => {
             achievements.value = achievements.value.filter(a => a.id !== achievement.id)
         }, 5000) // Hide after 5s
@@ -385,6 +415,10 @@ const nextQuestion = () => {
         destination: `/app/game/${gameId}/next`,
         body: JSON.stringify({})
       })
+      // Fallback: fetch progress after a short delay to ensure UI is synced
+      setTimeout(() => {
+          fetchProgress()
+      }, 1000)
   }
 }
 
@@ -459,6 +493,11 @@ onMounted(async () => {
   }
   await fetchGameDetails()
   connectWebSocket()
+  
+  // Initial progress fetch for host
+  if (isHost.value) {
+      fetchProgress()
+  }
 })
 
 onUnmounted(() => {

@@ -1,7 +1,6 @@
 package com.kubou.interface_adapter.controller.dto;
 
 import com.kubou.domain.entity.AchievementType;
-import com.kubou.domain.entity.PlayerAchievement;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -14,8 +13,8 @@ class AchievementResponseTest {
 
     @Test
     void testConstructorAndGetters() {
-        PlayerAchievement achievement = new PlayerAchievement("1", "user", AchievementType.SNIPER, LocalDateTime.now());
-        List<PlayerAchievement> list = List.of(achievement);
+        AchievementDto achievement = new AchievementDto(AchievementType.SNIPER, "Sniper", "Desc", true, LocalDateTime.now());
+        List<AchievementDto> list = List.of(achievement);
         String message = "Test Message";
 
         AchievementResponse response = new AchievementResponse(true, message, list);
@@ -31,7 +30,7 @@ class AchievementResponseTest {
 
         response.setGuest(true);
         response.setMessage("New Message");
-        PlayerAchievement achievement = new PlayerAchievement("2", "user", AchievementType.FLASH, LocalDateTime.now());
+        AchievementDto achievement = new AchievementDto(AchievementType.FLASH, "Flash", "Desc", false, null);
         response.setAchievements(List.of(achievement));
 
         assertTrue(response.isGuest());

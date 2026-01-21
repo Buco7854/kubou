@@ -80,7 +80,9 @@ class AchievementControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.guest").value(false))
-                .andExpect(jsonPath("$.achievements[0].type").value("FLASH"));
+                .andExpect(jsonPath("$.achievements").isArray())
+                .andExpect(jsonPath("$.achievements[?(@.type == 'FLASH')].unlocked").value(true))
+                .andExpect(jsonPath("$.achievements[?(@.type == 'SNIPER')].unlocked").value(false));
     }
 
     @Test
@@ -95,15 +97,5 @@ class AchievementControllerTest {
                 .andExpect(jsonPath("$.guest").value(true))
                 .andExpect(jsonPath("$.message").exists())
                 .andExpect(jsonPath("$.achievements").isEmpty());
-    }
-
-    @Test
-    void debugAllAchievements_ShouldReturnList() throws Exception {
-        when(achievementRepository.findAll()).thenReturn(Collections.emptyList());
-
-        mockMvc.perform(get("/api/v1/achievements/debug")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
     }
 }

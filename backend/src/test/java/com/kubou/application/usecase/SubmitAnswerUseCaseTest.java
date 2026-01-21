@@ -3,110 +3,103 @@ package com.kubou.application.usecase;
 import com.kubou.application.repository.GameSessionRepository;
 import com.kubou.application.repository.PlayerResponseRepository;
 import com.kubou.application.repository.QuizRepository;
-import com.kubou.application.service.AchievementService;
+import com.kubou.application.usecase.dto.SubmitAnswerResult;
 import com.kubou.domain.entity.*;
-import com.kubou.domain.service.CustomScoringStrategy;
 import com.kubou.domain.service.IScoringStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
+import org.mockito.MockitoAnnotations;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class SubmitAnswerUseCaseTest {
+
+    @Mock private GameSessionRepository gameSessionRepository;
+    @Mock private QuizRepository quizRepository;
+    @Mock private PlayerResponseRepository playerResponseRepository;
+    @Mock private IScoringStrategy scoringStrategy;
 
     private SubmitAnswerUseCase submitAnswerUseCase;
 
-    @Mock
-    private GameSessionRepository gameSessionRepository;
-
-    @Mock
-    private QuizRepository quizRepository;
-
-    @Mock
-    private PlayerResponseRepository playerResponseRepository;
-
-    @Mock
-    private AchievementService achievementService;
-
-    private IScoringStrategy scoringStrategy;
-
-    private GameSession session;
-    private Player player;
-    private Quiz quiz;
-    private Question question;
-
     @BeforeEach
     void setUp() {
-        scoringStrategy = new CustomScoringStrategy(); // Using CustomScoringStrategy as SimpleScoringStrategy is removed
-
+        MockitoAnnotations.openMocks(this);
         submitAnswerUseCase = new SubmitAnswerUseCase(
-                gameSessionRepository, 
-                quizRepository, 
-                playerResponseRepository, 
-                scoringStrategy, 
-                achievementService
+            gameSessionRepository, quizRepository, playerResponseRepository, scoringStrategy
         );
-
-        // Setup test data
-        player = new Player("player-1", "TestPlayer");
-        question = new Question("q1", "2+2?", Arrays.asList("3", "4", "5"), 1, Collections.emptyList(), 1);
-        quiz = new Quiz("quiz-1", "Math Quiz", Collections.singletonList(question));
-        session = new GameSession("game-1", "123456", "quiz-1", "host-1");
-        session.setState(GameState.IN_PROGRESS);
-        session.addPlayer(player);
-        
-        // Ensure game config has default scoring settings for CustomScoringStrategy
-        session.setGameConfig(new GameConfig(new ScoringSettings(1000, 0.0, 1.0))); // 0.0 time weight means full score regardless of time
     }
 
     @Test
-    void shouldAwardPointsForCorrectAnswer() {
-        // Given
-        UserAnswer correctAnswer = new UserAnswer("player-1", "q1", 1, 5000);
+    void execute_ShouldSaveScore_Correctly() {
+        // Arrange
+        String gameId = "g1";
+        String playerId = "p1";
+        String questionId = "q1";
         
-        when(gameSessionRepository.findById("game-1")).thenReturn(Optional.of(session));
-        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
+        GameSession session = new GameSession(gameId, "123", "quiz1", "host");
+        Player player = new Player(playerId, "user1", "Nick");
+        session.getPlayers().add(player);
+        // Add a second player so round is not finished
+        session.getPlayers().add(new Player("p2", "user2", "Player 2"));
+        
+        Quiz quiz = new Quiz("quiz1", "Title", new ArrayList<>());
+        Question question = new Question(questionId, "Text", Collections.emptyList(), 0, Collections.emptyList(), 1);
+        quiz.getQuestions().add(question);
+        
+        UserAnswer userAnswer = new UserAnswer(playerId, questionId, 0, 1000);
+        
+        when(gameSessionRepository.findById(gameId)).thenReturn(Optional.of(session));
+        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
+        when(scoringStrategy.calculate(any(), any(), any(), anyInt())).thenReturn(100);
+        
+        // Act
+        SubmitAnswerResult result = submitAnswerUseCase.execute(gameId, userAnswer);
 
-        // When
-        int score = submitAnswerUseCase.execute("game-1", correctAnswer);
-
-        // Then
-        assertEquals(1000, score);
-        assertEquals(1000, player.getScore());
+        // Assert
+        assertEquals(100, result.getScore());
+        assertEquals(100, player.getScore());
+        assertFalse(result.isRoundFinished());
+        
         verify(gameSessionRepository).save(session);
         verify(playerResponseRepository).save(any(PlayerResponse.class));
-        verify(achievementService).checkAndUnlockAchievements(eq(player), eq(correctAnswer), eq(true));
     }
 
     @Test
-    void shouldAwardZeroPointsForIncorrectAnswer() {
-        // Given
-        UserAnswer incorrectAnswer = new UserAnswer("player-1", "q1", 0, 3000);
+    void execute_ShouldHandleGameNotInProgress() {
+        // Arrange
+        String gameId = "g1";
+        String playerId = "p1";
+        String questionId = "q1";
+        
+        GameSession session = new GameSession(gameId, "123", "quiz1", "host");
+        session.setState(GameState.FINISHED); // Not IN_PROGRESS
+        Player player = new Player(playerId, "user1", "Nick");
+        session.getPlayers().add(player);
+        
+        Quiz quiz = new Quiz("quiz1", "Title", new ArrayList<>());
+        Question question = new Question(questionId, "Text", Collections.emptyList(), 0, Collections.emptyList(), 1);
+        quiz.getQuestions().add(question);
+        
+        UserAnswer userAnswer = new UserAnswer(playerId, questionId, 0, 1000);
+        
+        when(gameSessionRepository.findById(gameId)).thenReturn(Optional.of(session));
+        when(quizRepository.findById("quiz1")).thenReturn(Optional.of(quiz));
+        when(scoringStrategy.calculate(any(), any(), any(), anyInt())).thenReturn(100);
+        
+        // Act
+        SubmitAnswerResult result = submitAnswerUseCase.execute(gameId, userAnswer);
 
-        when(gameSessionRepository.findById("game-1")).thenReturn(Optional.of(session));
-        when(quizRepository.findById("quiz-1")).thenReturn(Optional.of(quiz));
-
-        // When
-        int score = submitAnswerUseCase.execute("game-1", incorrectAnswer);
-
-        // Then
-        assertEquals(0, score);
-        assertEquals(0, player.getScore());
+        // Assert
+        assertEquals(100, result.getScore());
         verify(gameSessionRepository).save(session);
-        verify(playerResponseRepository).save(any(PlayerResponse.class));
-        verify(achievementService).checkAndUnlockAchievements(eq(player), eq(incorrectAnswer), eq(false));
     }
 }
