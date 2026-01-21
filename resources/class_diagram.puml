@@ -1,0 +1,336 @@
+@startuml
+
+' --- DOMAIN ENTITIES ---
+class GameSession {
+    -String id
+    -String pin
+    -String quizId
+    -String hostId
+    -List<Player> players
+    -int currentQuestionIndex
+    -GameState state
+    -GameConfig gameConfig
+    -boolean isTeamMode
+    -List<Team> teams
+    -LocalDateTime currentQuestionStartTime
+    +addPlayer(Player)
+}
+
+class Player {
+    -String id
+    -String userId
+    -String nickname
+    -int score
+    -int currentStreak
+}
+
+class Team {
+    -String id
+    -String name
+    -int score
+    -List<String> playerIds
+    +addPlayer(String)
+}
+
+class Quiz {
+    -String id
+    -String title
+    -List<Question> questions
+    -String creatorId
+}
+
+class Question {
+    -String id
+    -String text
+    -List<String> options
+    -int correctAnswerIndex
+    -List<String> tags
+    -int difficultyLevel
+    -String creatorId
+}
+
+class UserAnswer {
+    -String playerId
+    -String questionId
+    -int answerIndex
+    -long timeToAnswerMs
+}
+
+class PlayerResponse {
+    -String id
+    -String gameSessionId
+    -String playerId
+    -String questionId
+    -int selectedAnswerIndex
+    -boolean isCorrect
+    -long timeTakenMs
+    -int scoreAwarded
+    -LocalDateTime timestamp
+}
+
+class GameConfig {
+    -ScoringSettings scoringSettings
+}
+
+class ScoringSettings {
+    -int baseScore
+    -double timeWeight
+    -double streakMultiplier
+}
+
+class AppUser {
+    -String id
+    -String username
+    -String password
+    -Set<String> roles
+}
+
+class PlayerAchievement {
+    -String id
+    -String playerId
+    -AchievementType type
+    -LocalDateTime unlockedAt
+}
+
+enum AchievementType {
+    SNIPER
+    FLASH
+    TURBO
+    LUCKY
+}
+
+enum GameState {
+    LOBBY
+    IN_PROGRESS
+    QUESTION_RESULTS
+    FINISHED
+}
+
+' --- DOMAIN SERVICES ---
+interface IScoringStrategy {
+    +calculate(UserAnswer, Question, GameConfig, int) int
+}
+
+class CustomScoringStrategy {
+    +calculate(UserAnswer, Question, GameConfig, int) int
+}
+
+interface IGameModeEngine {
+    +handleNextState(GameSession, int) GameState
+}
+
+class LinearQuizEngine {
+    +handleNextState(GameSession, int) GameState
+}
+
+' --- APPLICATION REPOSITORIES ---
+interface GameSessionRepository {
+    +findById(String) Optional<GameSession>
+    +findByPin(String) Optional<GameSession>
+    +save(GameSession)
+}
+
+interface QuizRepository {
+    +findById(String) Optional<Quiz>
+    +save(Quiz)
+}
+
+interface QuestionRepository {
+    +findById(String) Optional<Question>
+    +save(Question)
+}
+
+interface PlayerResponseRepository {
+    +save(PlayerResponse)
+    +findByGameSessionIdAndQuestionId(String, String) List<PlayerResponse>
+}
+
+interface PlayerAchievementRepository {
+    +save(PlayerAchievement)
+    +findByPlayerId(String) List<PlayerAchievement>
+}
+
+interface UserRepository {
+    +existsByUsername(String) boolean
+    +save(AppUser)
+}
+
+' --- APPLICATION SERVICES ---
+class TeamService {
+    +initializeTeams(GameSession, int)
+    +assignTeams(GameSession)
+    +balanceTeams(GameSession)
+}
+
+class AchievementService {
+    -PlayerAchievementRepository achievementRepository
+    -QuestionRepository questionRepository
+    +checkAndUnlockAchievements(Player, UserAnswer, boolean)
+    +awardEndGameAchievements(GameSession)
+}
+
+class SmartReviewService {
+    -PlayerResponseRepository responseRepository
+    -QuestionRepository questionRepository
+    -QuizRepository quizRepository
+    +generateReviewQuiz(String) Quiz
+}
+
+' --- USE CASES ---
+class CreateGameUseCase {
+    -GameSessionRepository gameSessionRepository
+    +execute(String, String) GameSession
+}
+
+class JoinGameUseCase {
+    -GameSessionRepository gameSessionRepository
+    +execute(String, Player)
+}
+
+class StartGameUseCase {
+    -GameSessionRepository gameSessionRepository
+    -TeamService teamService
+    +execute(String, String) GameSession
+}
+
+class NextQuestionUseCase {
+    -GameSessionRepository gameSessionRepository
+    -QuizRepository quizRepository
+    -IGameModeEngine gameModeEngine
+    +execute(String, String) GameSession
+}
+
+class SubmitAnswerUseCase {
+    -GameSessionRepository gameSessionRepository
+    -QuizRepository quizRepository
+    -PlayerResponseRepository playerResponseRepository
+    -IScoringStrategy scoringStrategy
+    -AchievementService achievementService
+    +execute(String, UserAnswer) int
+}
+
+' --- CONTROLLERS ---
+class GameController {
+    -JoinGameUseCase joinGameUseCase
+    -StartGameUseCase startGameUseCase
+    -NextQuestionUseCase nextQuestionUseCase
+    -SubmitAnswerUseCase submitAnswerUseCase
+    -GameSessionRepository gameSessionRepository
+    -QuizRepository quizRepository
+    -PlayerResponseRepository playerResponseRepository
+    -AchievementService achievementService
+    +joinLobby(JoinLobbyRequest)
+    +startGame(String)
+    +nextQuestion(String)
+    +submitAnswer(String, SubmitAnswerRequest)
+}
+
+class AuthController {
+    -UserRepository userRepository
+    +login(LoginRequest)
+    +register(RegisterRequest)
+    +guest(GuestLoginRequest)
+}
+
+class QuizController {
+    -QuizRepository quizRepository
+    -QuestionRepository questionRepository
+    +createQuiz(QuizCreationRequest)
+    +listQuizzes()
+    +getQuizById(String)
+}
+
+class QuestionController {
+    -QuestionRepository questionRepository
+    -QuizRepository quizRepository
+    +createQuestion(Question)
+    +getQuestionById(String)
+}
+
+class AchievementController {
+    -PlayerAchievementRepository achievementRepository
+    +getMyAchievements()
+    +getAchievementStatus()
+}
+
+class SmartReviewController {
+    -SmartReviewService smartReviewService
+    +generateReview()
+}
+
+class GameCreationController {
+    -CreateGameUseCase createGameUseCase
+    -GameSessionRepository gameSessionRepository
+    -TeamService teamService
+    +createGame(CreateGameRequest)
+    +getGameByPin(String)
+}
+
+' --- RELATIONSHIPS ---
+GameSession "1" *-- "*" Player
+GameSession "1" *-- "*" Team
+GameSession "1" *-- "1" GameConfig
+GameSession "1" -- "1" GameState
+GameConfig "1" *-- "1" ScoringSettings
+
+Quiz "1" *-- "*" Question
+
+PlayerAchievement "1" -- "1" AchievementType
+
+CustomScoringStrategy ..|> IScoringStrategy
+LinearQuizEngine ..|> IGameModeEngine
+
+' Controller Dependencies
+GameController ..> JoinGameUseCase
+GameController ..> StartGameUseCase
+GameController ..> NextQuestionUseCase
+GameController ..> SubmitAnswerUseCase
+GameController ..> AchievementService
+GameController ..> GameSessionRepository
+GameController ..> QuizRepository
+GameController ..> PlayerResponseRepository
+
+AuthController ..> UserRepository
+
+QuizController ..> QuizRepository
+QuizController ..> QuestionRepository
+
+QuestionController ..> QuestionRepository
+QuestionController ..> QuizRepository
+
+AchievementController ..> PlayerAchievementRepository
+
+SmartReviewController ..> SmartReviewService
+
+GameCreationController ..> CreateGameUseCase
+GameCreationController ..> GameSessionRepository
+GameCreationController ..> TeamService
+
+' Use Case Dependencies
+CreateGameUseCase ..> GameSessionRepository
+
+JoinGameUseCase ..> GameSessionRepository
+
+StartGameUseCase ..> GameSessionRepository
+StartGameUseCase ..> TeamService
+
+NextQuestionUseCase ..> GameSessionRepository
+NextQuestionUseCase ..> QuizRepository
+NextQuestionUseCase ..> IGameModeEngine
+
+SubmitAnswerUseCase ..> GameSessionRepository
+SubmitAnswerUseCase ..> QuizRepository
+SubmitAnswerUseCase ..> PlayerResponseRepository
+SubmitAnswerUseCase ..> IScoringStrategy
+SubmitAnswerUseCase ..> AchievementService
+SubmitAnswerUseCase ..> PlayerResponse : Creates
+
+' Service Dependencies
+AchievementService ..> PlayerAchievementRepository
+AchievementService ..> QuestionRepository
+
+SmartReviewService ..> PlayerResponseRepository
+SmartReviewService ..> QuestionRepository
+SmartReviewService ..> QuizRepository
+
+@enduml

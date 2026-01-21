@@ -18,6 +18,7 @@ interface Question {
   options: string[]
   difficultyLevel: number
   correctAnswerIndex?: number // Only for host
+  startTime?: number // Added startTime
 }
 
 const currentQuestion = ref<Question | null>(null)
@@ -43,6 +44,19 @@ const winner = ref<any>(null)
 const totalQuestions = ref(0)
 const currentQuestionIndex = ref(-1) // Start at -1 so first question (index 0) increments to 0
 const myTeamName = ref<string | null>(null)
+const quizIdRef = ref<string>('') // Store quizId for redirection
+
+// Achievement Metadata - ONLY ACTIVE BADGES
+const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
+    'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'border-red-500', bg: 'from-red-500 to-red-700' },
+    'FLASH': { label: 'Flash', description: 'Réponse correcte en moins de 1 seconde', icon: '⚡', color: 'border-yellow-400', bg: 'from-yellow-400 to-yellow-600' },
+    'TURBO': { label: 'Turbo', description: '3 réponses rapides (< 5s) d\'affilée', icon: '🚀', color: 'border-orange-500', bg: 'from-orange-500 to-orange-700' },
+    'LUCKY': { label: 'Chanceux', description: 'Bonne réponse sur une question difficile', icon: '🍀', color: 'border-green-500', bg: 'from-green-500 to-green-700' }
+}
+
+const getMetadata = (type: string) => {
+    return achievementMetadata[type] || { label: type, description: 'Succès débloqué', icon: '🏆', color: 'border-yellow-200', bg: 'from-yellow-400 to-yellow-600' }
+}
 
 const updateMyTeamName = () => {
     if (!isHost.value && currentUserId.value && players.value.length > 0) {
@@ -56,7 +70,7 @@ const updateMyTeamName = () => {
     }
 }
 
-const resetRound = () => {
+const resetRound = (startTime?: number) => {
   selectedOptionIndex.value = null
   answerSubmitted.value = false
   pointsAwarded.value = null
@@ -65,10 +79,30 @@ const resetRound = () => {
   correctAnswerIndex.value = null
   correctAnswerText.value = null
   roundFinished.value = false
-  timeRemaining.value = 30
   answeredCount.value = 0
 
   if (timerInterval.value) clearInterval(timerInterval.value)
+
+  // Calculate remaining time based on server start time
+  if (startTime) {
+      const now = Date.now() // Client time (assuming roughly synced or using server offset)
+      // Ideally we should use server time offset, but for now let's assume NTP sync is decent or rely on relative time
+      // Better: The server sends its current time too, so we can calc offset.
+      // For simplicity here, we assume startTime is UTC epoch.
+      // We need to account for the fact that 'startTime' is when the question STARTED.
+      // So elapsed = now - startTime.
+      // Remaining = 30 - (elapsed / 1000).
+
+      // However, client clock might be off.
+      // Let's rely on the fact that we just received the message or fetched it.
+      // If we fetched it via REST, we might be late.
+
+      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000)
+      const remaining = 30 - elapsedSeconds
+      timeRemaining.value = remaining > 0 ? remaining : 0
+  } else {
+      timeRemaining.value = 30
+  }
 
   timerInterval.value = setInterval(() => {
     if (timeRemaining.value > 0) {
@@ -76,8 +110,6 @@ const resetRound = () => {
     } else {
       if (timerInterval.value) clearInterval(timerInterval.value)
       // Time up!
-      roundFinished.value = true
-      showCorrectAnswer.value = true
     }
   }, 1000)
 }
@@ -94,8 +126,28 @@ const handleNewQuestion = (question: any) => {
     setTimeout(() => {
         currentQuestion.value = question
         currentQuestionIndex.value++
-        resetRound()
+        resetRound(question.startTime)
+        // Fetch progress immediately to sync state (in case of rejoin or delay)
+        if (isHost.value) {
+            fetchProgress()
+        }
     }, 3000)
+}
+
+const fetchProgress = async () => {
+    if (!isHost.value) return
+    try {
+        const token = authStore.token
+        const response = await axios.get(`/api/v1/games/${gameId}/progress`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+        if (response.data) {
+            answeredCount.value = response.data.answeredCount
+            totalPlayers.value = response.data.totalPlayers
+        }
+    } catch (error) {
+        console.error("Failed to fetch progress", error)
+    }
 }
 
 const fetchGameDetails = async () => {
@@ -119,12 +171,19 @@ const fetchGameDetails = async () => {
         if (response.data.players) {
             players.value = response.data.players
             totalPlayers.value = response.data.players.length
+            
+            // Update leaderboard from players list if empty
+            if (leaderboard.value.length === 0) {
+                leaderboard.value = players.value.sort((a, b) => b.score - a.score)
+            }
         }
 
         if (response.data.teams) {
             teams.value = response.data.teams
             updateMyTeamName()
         }
+        
+        quizIdRef.value = response.data.quizId
 
         // Only set index if game is in progress, otherwise keep -1 for Lobby
         if (response.data.state === 'IN_PROGRESS' || response.data.state === 'QUESTION_RESULTS') {
@@ -143,24 +202,53 @@ const fetchGameDetails = async () => {
         if (response.data.state === 'IN_PROGRESS' && response.data.currentQuestionIndex >= 0) {
              const question = quizResponse.data.questions[response.data.currentQuestionIndex]
              if (question) {
+                 // Fetch sync time for late joiners
+                 let startTime = undefined;
+                 try {
+                     const timeResponse = await axios.post(`/api/v1/games/${gameId}/sync-time`, {}, {
+                         headers: { Authorization: `Bearer ${token}` }
+                     });
+                     // Adjust start time by client-server offset if needed, but raw epoch is usually fine if clocks are OK.
+                     // To be safer: serverTime - startTime = elapsed on server.
+                     // clientTime - elapsed = localStartTime.
+                     if (timeResponse.data.startTime && timeResponse.data.serverTime) {
+                         const elapsed = timeResponse.data.serverTime - timeResponse.data.startTime;
+                         startTime = Date.now() - elapsed;
+                     }
+                 } catch (e) {
+                     console.error("Failed to sync time", e);
+                 }
+
                  const questionData = {
                      id: question.id,
                      text: question.text,
                      options: question.options,
                      difficultyLevel: question.difficultyLevel,
-                     correctAnswerIndex: undefined
+                     correctAnswerIndex: undefined,
+                     startTime: startTime
                  }
 
-                 // If it's the first question, force the "Get Ready" delay so players see their team
-                 if (response.data.currentQuestionIndex === 0) {
-                     currentQuestionIndex.value = -1 // Reset to -1 so handleNewQuestion increments to 0
-                     handleNewQuestion(questionData)
-                 } else {
-                     // Otherwise show immediately
-                     currentQuestion.value = questionData
-                     resetRound()
+                 // Check if we already have this question loaded
+                 const isSameQuestion = currentQuestion.value && currentQuestion.value.id === question.id;
+
+                 // Only reset if it's a NEW question AND we are not in results mode
+                 if (!isSameQuestion && !showLeaderboard.value && !showCorrectAnswer.value) {
+                     if (response.data.currentQuestionIndex === 0) {
+                         currentQuestionIndex.value = -1
+                         handleNewQuestion(questionData)
+                     } else {
+                         currentQuestion.value = questionData
+                         resetRound(startTime)
+                         if (isHost.value) {
+                           fetchProgress()
+                         }
+                     }
                  }
              }
+        } else if (response.data.state === 'QUESTION_RESULTS') {
+            // Ensure we are showing results if the backend says so
+            roundFinished.value = true
+            showCorrectAnswer.value = true
         }
 
     } catch (error) {
@@ -175,7 +263,7 @@ const connectWebSocket = () => {
       return
   }
 
-  const socket = new SockJS('http://localhost:8080/ws')
+  const socket = new SockJS('/ws')
 
   stompClient.value = new Client({
     webSocketFactory: () => socket,
@@ -189,6 +277,7 @@ const connectWebSocket = () => {
       stompClient.value?.subscribe(`/topic/game/${gameId}/question`, (message) => {
         if (!isHost.value) {
             const question = JSON.parse(message.body)
+            if (currentQuestion.value && currentQuestion.value.id === question.id) return
             handleNewQuestion(question)
         }
       })
@@ -197,6 +286,7 @@ const connectWebSocket = () => {
       if (isHost.value) {
           stompClient.value?.subscribe(`/topic/game/${gameId}/host/question`, (message) => {
             const question = JSON.parse(message.body)
+            if (currentQuestion.value && currentQuestion.value.id === question.id) return
             const questionData = {
                 ...question,
                 correctAnswerIndex: undefined
@@ -216,7 +306,6 @@ const connectWebSocket = () => {
       stompClient.value?.subscribe(`/topic/game/${gameId}/round_end`, (message) => {
           roundFinished.value = true
           if (timerInterval.value) clearInterval(timerInterval.value)
-          // Initially show correct answer, then allow toggle to leaderboard
           showCorrectAnswer.value = true
           showLeaderboard.value = false
       })
@@ -238,6 +327,14 @@ const connectWebSocket = () => {
       stompClient.value?.subscribe(`/user/queue/achievements`, (message) => {
         const achievement = JSON.parse(message.body)
         achievements.value.push(achievement)
+        
+        // SAVE TO LOCAL STORAGE FOR SYNC
+        const recentlyUnlocked = JSON.parse(localStorage.getItem('recentlyUnlockedAchievements') || '[]')
+        if (!recentlyUnlocked.includes(achievement.type)) {
+            recentlyUnlocked.push(achievement.type)
+            localStorage.setItem('recentlyUnlockedAchievements', JSON.stringify(recentlyUnlocked))
+        }
+
         setTimeout(() => {
             achievements.value = achievements.value.filter(a => a.id !== achievement.id)
         }, 5000) // Hide after 5s
@@ -255,13 +352,23 @@ const connectWebSocket = () => {
       })
 
       // Subscribe to game finished
-      stompClient.value?.subscribe(`/topic/game/${gameId}/finished`, (message) => {
+      stompClient.value?.subscribe(`/topic/game/${gameId}/finished`, async (message) => {
+        console.log("Game Finished received!")
         gameFinished.value = true
         roundFinished.value = true
         showLeaderboard.value = true
         showCorrectAnswer.value = false
-        if (leaderboard.value.length > 0) {
-            winner.value = leaderboard.value[0]
+        
+        try {
+            await fetchGameDetails()
+            if (players.value.length > 0) {
+                 leaderboard.value = players.value.sort((a, b) => b.score - a.score)
+            }
+            if (leaderboard.value.length > 0) {
+                winner.value = leaderboard.value[0]
+            }
+        } catch (e) {
+            console.error("Error fetching final details", e)
         }
       })
     },
@@ -275,9 +382,8 @@ const connectWebSocket = () => {
 
 const submitAnswer = (index: number) => {
   if (answerSubmitted.value) return
-
-  // Prevent host from answering
   if (isHost.value) return
+  if (timeRemaining.value <= 0) return // Prevent answering if time is up
 
   selectedOptionIndex.value = index
   answerSubmitted.value = true
@@ -295,13 +401,38 @@ const submitAnswer = (index: number) => {
 }
 
 const nextQuestion = () => {
-  stompClient.value?.publish({
-    destination: `/app/game/${gameId}/next`,
-    body: JSON.stringify({})
-  })
+  // This function is now context-aware based on the backend state machine
+  // If round is NOT finished, calling 'next' triggers End of Round (Results)
+  // If round IS finished, calling 'next' triggers Next Question
+
+  if (isLastQuestion.value && roundFinished.value) {
+      stompClient.value?.publish({
+        destination: `/app/game/${gameId}/close`,
+        body: JSON.stringify({})
+      })
+  } else {
+      stompClient.value?.publish({
+        destination: `/app/game/${gameId}/next`,
+        body: JSON.stringify({})
+      })
+      // Fallback: fetch progress after a short delay to ensure UI is synced
+      setTimeout(() => {
+          fetchProgress()
+      }, 1000)
+  }
 }
 
-const toggleView = () => {
+const toggleView = async () => {
+    if (!showLeaderboard.value) {
+        try {
+            await fetchGameDetails()
+            if (players.value.length > 0) {
+                 leaderboard.value = players.value.sort((a, b) => b.score - a.score)
+            }
+        } catch (e) {
+            console.error("Error refreshing leaderboard", e)
+        }
+    }
     showLeaderboard.value = !showLeaderboard.value
     showCorrectAnswer.value = !showCorrectAnswer.value
 }
@@ -323,6 +454,18 @@ const returnToHome = () => {
     router.push('/')
 }
 
+const returnToQuiz = () => {
+    if (quizIdRef.value) {
+        router.push(`/quiz/${quizIdRef.value}`)
+    } else {
+        router.push('/')
+    }
+}
+
+const goToAchievements = () => {
+    router.push('/achievements')
+}
+
 const podium = computed(() => {
     return leaderboard.value.slice(0, 3)
 })
@@ -332,14 +475,6 @@ const remainingLeaderboard = computed(() => {
 })
 
 const isLastQuestion = computed(() => {
-    // currentQuestionIndex is 0-based, totalQuestions is count.
-    // If we are at index 2 and total is 3, it's the last question.
-    // However, currentQuestionIndex is incremented when a new question arrives.
-    // Let's assume currentQuestionIndex tracks the *current* question being played.
-    // We need to be careful about when it's updated.
-    // In fetchGameDetails, we get the index from DB.
-    // In websocket, we increment it.
-    // So if we are at the last question, index + 1 == total.
     return currentQuestionIndex.value + 1 >= totalQuestions.value
 })
 
@@ -358,6 +493,11 @@ onMounted(async () => {
   }
   await fetchGameDetails()
   connectWebSocket()
+  
+  // Initial progress fetch for host
+  if (isHost.value) {
+      fetchProgress()
+  }
 })
 
 onUnmounted(() => {
@@ -381,11 +521,12 @@ onUnmounted(() => {
     <!-- Achievements Overlay -->
     <div class="absolute top-24 right-4 z-50 space-y-3 pointer-events-none">
         <div v-for="achievement in achievements" :key="achievement.id"
-             class="bg-gradient-to-r from-yellow-400 to-yellow-600 text-white p-4 shadow-2xl rounded-xl animate-slide-in flex items-center space-x-3 border-2 border-yellow-200">
-            <div class="text-3xl">🏆</div>
+             class="bg-gradient-to-r text-white p-4 shadow-2xl rounded-xl animate-slide-in flex items-center space-x-3 border-2"
+             :class="[getMetadata(achievement.type).bg, getMetadata(achievement.type).color]">
+            <div class="text-3xl">{{ getMetadata(achievement.type).icon }}</div>
             <div>
-                <p class="font-bold text-lg">Succès Débloqué !</p>
-                <p class="text-sm opacity-90">{{ achievement.type }}</p>
+                <p class="font-bold text-lg">{{ getMetadata(achievement.type).label }}</p>
+                <p class="text-sm opacity-90">{{ getMetadata(achievement.type).description }}</p>
             </div>
         </div>
     </div>
@@ -468,10 +609,26 @@ onUnmounted(() => {
               </div>
           </div>
 
-          <div class="mt-12">
-              <button @click="returnToHome" class="bg-white text-indigo-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-100 transition shadow-lg">
-                  Retour à l'accueil
-              </button>
+          <div class="mt-12 flex justify-center space-x-4">
+              <!-- Host Actions -->
+              <template v-if="isHost">
+                  <button @click="returnToQuiz" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-xl hover:bg-indigo-700 transition shadow-lg flex items-center">
+                      <span class="mr-2">🔙</span> Retour au Quiz
+                  </button>
+                  <button @click="returnToHome" class="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-lg hover:bg-white/20 transition shadow-lg">
+                      Accueil
+                  </button>
+              </template>
+
+              <!-- Player Actions -->
+              <template v-else>
+                  <button @click="goToAchievements" class="bg-yellow-500 text-yellow-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-yellow-400 transition shadow-lg flex items-center">
+                      <span class="mr-2">🏆</span> Voir mes Succès
+                  </button>
+                  <button @click="returnToHome" class="bg-white text-indigo-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-100 transition shadow-lg flex items-center">
+                      <span class="mr-2">🏠</span> Quitter
+                  </button>
+              </template>
           </div>
       </div>
 
@@ -494,14 +651,14 @@ onUnmounted(() => {
             v-for="(option, index) in currentQuestion.options"
             :key="index"
             @click="submitAnswer(index)"
-            :disabled="answerSubmitted || isHost || roundFinished"
+            :disabled="answerSubmitted || isHost || roundFinished || timeRemaining <= 0"
             :class="[
               'p-8 rounded-xl text-2xl font-bold text-white shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center h-32 relative overflow-hidden',
               index === 0 ? 'bg-red-500 hover:bg-red-600 shadow-red-500/50' :
               index === 1 ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/50' :
               index === 2 ? 'bg-yellow-500 hover:bg-yellow-600 shadow-yellow-500/50' :
               'bg-green-500 hover:bg-green-600 shadow-green-500/50',
-              (answerSubmitted || isHost || roundFinished) && selectedOptionIndex !== index && correctAnswerIndex !== index ? 'opacity-40 grayscale cursor-not-allowed' : '',
+              (answerSubmitted || isHost || roundFinished || timeRemaining <= 0) && selectedOptionIndex !== index && correctAnswerIndex !== index ? 'opacity-40 grayscale cursor-not-allowed' : '',
               answerSubmitted && selectedOptionIndex === index ? 'ring-8 ring-white scale-105 z-10' : '',
               isHost ? 'cursor-default hover:scale-100 opacity-100 grayscale-0' : '', // Host sees colors but disabled
               showCorrectAnswer && correctAnswerIndex === index ? 'ring-8 ring-green-400 scale-105 z-20 animate-pulse' : '',
@@ -534,7 +691,10 @@ onUnmounted(() => {
                 {{ showLeaderboard ? 'Voir Réponse' : 'Voir Classement' }}
             </button>
 
-            <!-- Next Question button moved to Leaderboard view for Host -->
+            <button v-if="isHost" @click="nextQuestion"
+                  class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-12 py-4 rounded-full font-bold text-2xl hover:from-green-600 hover:to-emerald-700 transition transform hover:scale-105 shadow-xl ring-4 ring-white/20">
+            {{ roundFinished ? (isLastQuestion ? 'Terminer la Partie 🏁' : 'Question Suivante ➡️') : 'Afficher les Résultats 📊' }}
+          </button>
         </div>
       </div>
 

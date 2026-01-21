@@ -23,6 +23,13 @@ const fetchGameDetails = async () => {
         const response = await axios.get(`/api/v1/games/by-pin/${pin}`, { headers })
         gameId.value = response.data.id
 
+        // Check if game is already started (IN_PROGRESS or QUESTION_RESULTS)
+        if (response.data.state === 'IN_PROGRESS' || response.data.state === 'QUESTION_RESULTS') {
+            console.log("Game already in progress (REST check), redirecting...")
+            router.push(`/game/${response.data.id}`)
+            return
+        }
+
         // Populate players from initial fetch
         if (response.data.players) {
             players.value = response.data.players
@@ -53,7 +60,8 @@ const connectWebSocket = () => {
       return
   }
 
-  const socket = new SockJS('http://localhost:8080/ws')
+  // Use relative path for WebSocket connection to work with Nginx proxy
+  const socket = new SockJS('/ws')
 
   stompClient.value = new Client({
     webSocketFactory: () => socket,
@@ -83,6 +91,13 @@ const connectWebSocket = () => {
               const data = JSON.parse(message.body)
               console.log("Joined game with ID:", data.gameId)
               gameId.value = data.gameId
+
+              // Check if game is already started
+              if (data.state === 'IN_PROGRESS' || data.state === 'QUESTION_RESULTS') {
+                  console.log("Game already in progress (WS check), redirecting...")
+                  router.push(`/game/${data.gameId}`)
+                  return
+              }
 
               // Now subscribe to game start on the specific game ID
               stompClient.value?.subscribe(`/topic/game/${data.gameId}/started`, (msg) => {

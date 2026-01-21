@@ -7,7 +7,8 @@ import QuizDetailView from '../views/QuizDetailView.vue'
 import LobbyView from '../views/LobbyView.vue'
 import GameView from '../views/GameView.vue'
 import QuizListView from '../views/QuizListView.vue'
-import SmartReviewQuizView from '../views/SmartReviewQuizView.vue' // Import the new view
+import SmartReviewQuizView from '../views/SmartReviewQuizView.vue'
+import AchievementsView from '../views/AchievementsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -53,9 +54,14 @@ const router = createRouter({
       component: GameView
     },
     {
-      path: '/smart-review-quiz', // Add the new route
+      path: '/smart-review-quiz',
       name: 'smart-review-quiz',
       component: SmartReviewQuizView
+    },
+    {
+      path: '/achievements',
+      name: 'achievements',
+      component: AchievementsView
     }
   ]
 })

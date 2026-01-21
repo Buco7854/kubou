@@ -11,6 +11,7 @@ const username = ref('')
 const password = ref('')
 const nickname = ref('')
 const isGuest = ref(false)
+const isRegistering = ref(false)
 
 const handleLogin = async () => {
   try {
@@ -25,7 +26,21 @@ const handleLogin = async () => {
     router.push(redirectPath)
   } catch (error) {
     console.error('Échec de la connexion', error)
-    alert('Échec de la connexion')
+    alert('Échec de la connexion. Vérifiez vos identifiants.')
+  }
+}
+
+const handleRegister = async () => {
+  try {
+    await axios.post('/api/v1/auth/register', {
+      username: username.value,
+      password: password.value
+    })
+    alert('Inscription réussie ! Vous pouvez maintenant vous connecter.')
+    isRegistering.value = false
+  } catch (error) {
+    console.error('Échec de l\'inscription', error)
+    alert('Échec de l\'inscription. Ce nom d\'utilisateur est peut-être déjà pris.')
   }
 }
 
@@ -68,7 +83,7 @@ onMounted(() => {
     <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
       <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
 
-        <!-- Toggle -->
+        <!-- Toggle Guest/Account -->
         <div class="flex justify-center mb-8 bg-gray-100 p-1 rounded-lg">
           <button
             @click="isGuest = false"
@@ -84,9 +99,18 @@ onMounted(() => {
           </button>
         </div>
 
-        <!-- Login Form -->
+        <!-- Account Forms (Login / Register) -->
         <div v-if="!isGuest" class="animate-fade-in">
-          <form @submit.prevent="handleLogin" class="space-y-6">
+          <div class="mb-6 flex justify-between items-center border-b border-gray-200 pb-2">
+              <h3 class="text-lg font-medium text-gray-900">
+                  {{ isRegistering ? 'Créer un compte' : 'Se connecter' }}
+              </h3>
+              <button @click="isRegistering = !isRegistering" class="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
+                  {{ isRegistering ? 'J\'ai déjà un compte' : 'Pas de compte ?' }}
+              </button>
+          </div>
+
+          <form @submit.prevent="isRegistering ? handleRegister() : handleLogin()" class="space-y-6">
             <div>
               <label class="block text-sm font-medium text-gray-700">Nom d'utilisateur</label>
               <div class="mt-1">
@@ -103,7 +127,7 @@ onMounted(() => {
 
             <div>
               <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Se connecter
+                {{ isRegistering ? 'S\'inscrire' : 'Se connecter' }}
               </button>
             </div>
           </form>

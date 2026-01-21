@@ -6,4 +6,5 @@ import java.util.List;
 public interface PlayerAchievementRepository {
     void save(PlayerAchievement achievement);
     List<PlayerAchievement> findByPlayerId(String playerId);
+    List<PlayerAchievement> findAll(); // Added for debug/admin
 }

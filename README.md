@@ -51,24 +51,102 @@ Le projet s'articule autour de 6 features majeurs :
 
 ## 🏗️ Architecture Technique
 
-Le projet respecte les principes de la **Clean Architecture** pour isoler la logique métier complexe (Scoring, Smart Review).
+Le projet respecte les principes de la **Clean Architecture** pour isoler la logique métier complexe.
 
-### Structure
-* **`domain`**: Entités (Game, Player) et Interfaces de Services (Règles métier pures).
-* **`application`**: Cas d'utilisation (Use Cases) orchestrant les flux.
-* **`infrastructure`**: Implémentations (JPA, WebSocket, Security).
-* **`interface_adapter`**: Contrôleurs REST et WebSocket.
-
-### Stack Technologique
-* **Backend:** Java 21, Spring Boot 3, Spring Security (JWT), WebSocket (STOMP).
-* **Frontend:** Vue.js 3, TypeScript, TailwindCSS, Pinia.
-* **Data:** PostgreSQL 18, Docker.
+### Structure des Packages
+* **`domain`**: Le cœur. Contient les Entités (`GameSession`, `Player`) et les Interfaces (`IScoringStrategy`). Aucune dépendance externe (Framework agnostic).
+* **`application`**: La logique applicative. Contient les Use Cases (`SubmitAnswerUseCase`) et les Services (`AchievementService`). Orchestre les flux de données.
+* **`infrastructure`**: Les détails techniques. Implémentation des Repositories (JPA/Hibernate), Configuration WebSocket, Sécurité (JWT).
+* **`interface_adapter`**: La couche de présentation. Contrôleurs REST (`QuizController`) et Contrôleurs WebSocket (`GameController`).
 
 ### Diagramme de Classe UML
 
-Voici une vue d'ensemble de la structure des classes du projet, illustrant les relations entre les entités du domaine, les services et les adaptateurs d'interface.
+Voici une vue d'ensemble de la structure des classes du projet.
 
-![Diagramme de Classe UML](resources/class_diagram.png)
+![Diagramme de Classe UML](resources/class_diagram.svg)
+
+## 📘 Guide Technique Détaillé & Flux de Données
+
+Cette section décortique le fonctionnement interne de l'application pour la présentation technique.
+
+### 1. Protocoles de Communication
+L'application utilise deux modes de communication distincts :
+*   **HTTP REST (Stateless)** : Pour la gestion des ressources (Création de Quiz, Login, Historique).
+*   **WebSocket STOMP (Stateful)** : Pour le déroulement du jeu en temps réel.
+
+**Lexique WebSocket (STOMP) :**
+*   `@MessageMapping` (Prefix `/app`) : Message envoyé du **Client vers le Serveur** (Action).
+*   `@SendTo` / `SimpMessagingTemplate` (Prefix `/topic`) : Message diffusé du **Serveur vers Tous les Clients** (Broadcast).
+*   `convertAndSendToUser` (Prefix `/user/queue`) : Message envoyé du **Serveur vers Un Client Spécifique** (Privé).
+
+---
+
+### 2. Scénario : Le Cycle de Vie d'une Partie (Game Loop)
+
+Voici le détail technique de ce qui se passe "sous le capot" lors d'une partie.
+
+#### Phase A : Initialisation (REST)
+1.  Le professeur crée la partie via **HTTP POST** `/api/v1/games`.
+    *   *Classe :* `GameCreationController`.
+    *   *Action :* Le `CreateGameUseCase` instancie une `GameSession`, génère un PIN unique et sauvegarde en BDD.
+
+#### Phase B : Le Lobby (WebSocket)
+1.  L'élève rejoint via **WebSocket** en envoyant un message sur `/app/lobby/join`.
+    *   *Payload :* `{ pin: "123456", token: "..." }`.
+2.  Le serveur ajoute le joueur et notifie tout le monde via `/topic/lobby/{pin}/players`.
+    *   *Résultat :* La liste des joueurs se met à jour instantanément sur l'écran du prof.
+
+#### Phase C : Le Jeu (Le cœur du système)
+
+**1. Lancement de la question**
+*   Le prof clique sur "Start".
+*   **Client -> Serveur** : Envoi sur `/app/game/{id}/start`.
+*   **Serveur -> Clients** : Diffusion sur `/topic/game/{id}/question`.
+    *   *Note :* Le serveur envoie la question *sans* la bonne réponse aux élèves pour éviter la triche (inspection réseau).
+
+**2. Soumission d'une réponse (Flux Critique)**
+C'est ici que tout se joue.
+*   **Client -> Serveur** : L'élève clique sur une réponse. Le message est envoyé sur la destination STOMP :
+    > **`/app/game/{id}/submit`**
+    > *(Ceci n'est PAS une requête HTTP, mais un message WebSocket)*
+*   **Traitement Backend (`GameController` & `SubmitAnswerUseCase`)** :
+    1.  Récupération de la session et du joueur.
+    2.  **Validation Temporelle** : Vérification côté serveur que le temps n'est pas écoulé (Anti-cheat).
+    3.  **Calcul du Score** : Appel à `IScoringStrategy.calculate()`.
+        *   Prend en compte : La justesse, le temps restant, et le "Streak" (série de victoires).
+    4.  **Persistance** : Création d'une `PlayerResponse` (Donnée brute pour l'analytique).
+    5.  **Gamification** : Appel asynchrone à `AchievementService` pour vérifier si un badge (ex: "Sniper") doit être débloqué.
+
+**3. Feedback Temps Réel**
+Immédiatement après le calcul :
+*   **Serveur -> Client (Privé)** : Envoi sur `/user/queue/result`.
+    *   *Contenu :* "Tu as gagné +850 points". Seul l'élève concerné reçoit ce message.
+*   **Serveur -> Host (Public)** : Envoi sur `/topic/game/{id}/host/answer_received`.
+    *   *Action :* Le compteur "Réponses reçues" du prof s'incrémente.
+
+#### Phase D : Fin de Manche & Leaderboard
+1.  Une fois le temps écoulé ou tous les joueurs ayant répondu.
+2.  **Serveur -> Clients** : Diffusion sur `/topic/game/{id}/answer`.
+    *   *Contenu :* La bonne réponse est révélée.
+3.  **Serveur -> Clients** : Diffusion sur `/topic/game/{id}/leaderboard`.
+    *   *Contenu :* Le classement mis à jour (Top 5) et, si le mode équipe est actif, le score des équipes agrégé.
+
+---
+
+### 3. Zoom sur les Fonctionnalités "Intelligentes"
+
+#### La "Smart Review" (Révision Intelligente)
+*   **Problème :** Comment aider un élève qui a échoué ?
+*   **Solution Technique :**
+    1.  Appel **HTTP POST** `/api/v1/smart-review/generate`.
+    2.  Le `SmartReviewService` interroge le `PlayerResponseRepository`.
+    3.  Il filtre toutes les réponses où `isCorrect = false` sur les 30 derniers jours.
+    4.  Il récupère les questions originales via `QuestionRepository`.
+    5.  Il génère un nouvel objet `Quiz` (non persisté ou temporaire) contenant uniquement ces questions.
+
+#### L'Analytique "Boîte Noire"
+*   Toutes les actions sont logguées dans la table `PlayerResponse`.
+*   Cela permet de reconstruire n'importe quelle statistique *a posteriori* (Taux d'erreur par question, temps moyen par joueur, etc.) sans avoir besoin de compteurs pré-calculés durant la partie.
 
 ## 💻 Démarrage (Environnement de Dev)
 

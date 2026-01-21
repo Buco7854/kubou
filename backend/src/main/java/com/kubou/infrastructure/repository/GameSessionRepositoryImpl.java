@@ -84,6 +84,7 @@ public class GameSessionRepositoryImpl implements GameSessionRepository {
         data.setCurrentQuestionIndex(domain.getCurrentQuestionIndex());
         data.setState(domain.getState());
         data.setTeamMode(domain.isTeamMode());
+        data.setCurrentQuestionStartTime(domain.getCurrentQuestionStartTime());
 
         if (domain.getGameConfig() != null && domain.getGameConfig().getScoringSettings() != null) {
             ScoringSettings settings = domain.getGameConfig().getScoringSettings();

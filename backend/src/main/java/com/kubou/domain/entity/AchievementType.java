@@ -1,9 +1,11 @@
 package com.kubou.domain.entity;
 
 public enum AchievementType {
+    // Badges Temps Réel (Actifs)
     SNIPER("Sniper", "5 bonnes réponses d'affilée"),
     FLASH("Flash", "Réponse correcte en moins de 1 seconde"),
-    MARATHON("Marathonien", "Terminer un quiz complet");
+    TURBO("Turbo", "3 bonnes réponses rapides (< 5s) d'affilée"),
+    LUCKY("Lucky", "Bonne réponse sur une question difficile (Niveau 5)");
 
     private final String name;
     private final String description;
