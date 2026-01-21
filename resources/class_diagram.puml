@@ -299,8 +299,22 @@ package "com.kubou.application.service" {
         + assignTeams(GameSession session)
         + balanceTeams(GameSession session)
     }
-}
 
+    class SmartReviewService {
+        - PlayerResponseRepository playerResponseRepository
+        - QuestionRepository questionRepository
+        + getIncorrectlyAnsweredQuestionIds(String playerId): List<String>
+        + createCatchUpQuiz(String playerId): List<Question>
+    }
+
+    class AchievementService {
+        - PlayerAchievementRepository achievementRepository
+        - QuestionRepository questionRepository
+        - SimpMessagingTemplate messagingTemplate
+        + checkAndUnlockAchievements(Player player, UserAnswer userAnswer, boolean isCorrect)
+        + awardEndGameAchievements(GameSession session)
+    }
+}
 package "com.kubou.infrastructure.repository" {
     class QuizRepositoryImpl
     class UserRepositoryImpl
@@ -362,6 +376,12 @@ SubmitAnswerUseCase ..> QuizRepository : uses
 SubmitAnswerUseCase ..> PlayerResponseRepository : uses
 SubmitAnswerUseCase ..> IScoringStrategy : uses
 SubmitAnswerUseCase ..> SubmitAnswerResult : produces
+
+SmartReviewService ..> PlayerResponseRepository : uses
+SmartReviewService ..> QuestionRepository : uses
+
+AchievementService ..> PlayerAchievementRepository : uses
+AchievementService ..> QuestionRepository : uses
 
 QuizRepositoryImpl ..|> QuizRepository
 UserRepositoryImpl ..|> UserRepository
