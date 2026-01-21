@@ -1,30 +1,37 @@
 @startuml
 
 package "com.kubou.domain.entity" {
-
-    class AppUser {
+    class Quiz {
         - String id
-        - String username
-        - String password
-        - Set<String> roles
-        + AppUser()
-        + AppUser(String, String, String, Set<String>)
+        - String title
+        - List<Question> questions
+        - String creatorId
+        + Quiz(String id, String title, List<Question> questions)
+        + Quiz(String id, String title, List<Question> questions, String creatorId)
         + getId(): String
-        + setId(String)
-        + getUsername(): String
-        + setUsername(String)
-        + getPassword(): String
-        + setPassword(String)
-        + getRoles(): Set<String>
-        + setRoles(Set<String>)
+        + getTitle(): String
+        + getQuestions(): List<Question>
+        + getCreatorId(): String
     }
 
-    class GameConfig {
-        - ScoringSettings scoringSettings
-        + GameConfig()
-        + GameConfig(ScoringSettings)
-        + getScoringSettings(): ScoringSettings
-        + setScoringSettings(ScoringSettings)
+    class Question {
+        - String id
+        - String text
+        - List<String> options
+        - int correctAnswerIndex
+        - List<String> tags
+        - int difficultyLevel
+        - String creatorId
+        + Question()
+        + Question(String id, String text, List<String> options, int correctAnswerIndex, List<String> tags, int difficultyLevel)
+        + Question(String id, String text, List<String> options, int correctAnswerIndex, List<String> tags, int difficultyLevel, String creatorId)
+        + getId(): String
+        + getText(): String
+        + getOptions(): List<String>
+        + getCorrectAnswerIndex(): int
+        + getTags(): List<String>
+        + getDifficultyLevel(): int
+        + getCreatorId(): String
     }
 
     class GameSession {
@@ -39,37 +46,19 @@ package "com.kubou.domain.entity" {
         - boolean isTeamMode
         - List<Team> teams
         - LocalDateTime currentQuestionStartTime
-        + GameSession(String, String, String, String)
+        + GameSession(String id, String pin, String quizId, String hostId)
         + getId(): String
-        + setId(String)
         + getPin(): String
-        + setPin(String)
         + getQuizId(): String
-        + setQuizId(String)
         + getHostId(): String
-        + setHostId(String)
         + getPlayers(): List<Player>
-        + setPlayers(List<Player>)
         + getCurrentQuestionIndex(): int
-        + setCurrentQuestionIndex(int)
         + getState(): GameState
-        + setState(GameState)
         + getGameConfig(): GameConfig
-        + setGameConfig(GameConfig)
         + isTeamMode(): boolean
-        + setTeamMode(boolean)
         + getTeams(): List<Team>
-        + setTeams(List<Team>)
         + getCurrentQuestionStartTime(): LocalDateTime
-        + setCurrentQuestionStartTime(LocalDateTime)
-        + addPlayer(Player)
-    }
-
-    enum GameState {
-        LOBBY
-        IN_PROGRESS
-        QUESTION_RESULTS
-        FINISHED
+        + addPlayer(Player player)
     }
 
     class Player {
@@ -78,41 +67,69 @@ package "com.kubou.domain.entity" {
         - String nickname
         - int score
         - int currentStreak
-        + Player(String, String)
-        + Player(String, String, String)
+        + Player(String id, String nickname)
+        + Player(String id, String userId, String nickname)
         + getId(): String
-        + setId(String)
         + getUserId(): String
-        + setUserId(String)
         + getNickname(): String
-        + setNickname(String)
         + getScore(): int
-        + setScore(int)
         + getCurrentStreak(): int
-        + setCurrentStreak(int)
     }
 
-    class PlayerAchievement {
+    class Team {
         - String id
-        - String playerId
-        - AchievementType type
-        - LocalDateTime unlockedAt
-        + PlayerAchievement(String, String, AchievementType, LocalDateTime)
+        - String name
+        - int score
+        - List<String> playerIds
+        + Team(String id, String name)
         + getId(): String
-        + getPlayerId(): String
-        + getType(): AchievementType
-        + getUnlockedAt(): LocalDateTime
+        + getName(): String
+        + getScore(): int
+        + getPlayerIds(): List<String>
+        + addPlayer(String playerId)
     }
 
-    enum AchievementType {
-        SNIPER
-        FLASH
-        TURBO
-        LUCKY
-        - String name
-        - String description
-        + getName(): String
-        + getDescription(): String
+    class AppUser {
+        - String id
+        - String username
+        - String password
+        - Set<String> roles
+        + AppUser()
+        + AppUser(String id, String username, String password, Set<String> roles)
+        + getId(): String
+        + getUsername(): String
+        + getPassword(): String
+        + getRoles(): Set<String>
+    }
+
+    class GameConfig {
+        - ScoringSettings scoringSettings
+        + GameConfig()
+        + GameConfig(ScoringSettings scoringSettings)
+        + getScoringSettings(): ScoringSettings
+    }
+
+    class ScoringSettings {
+        - int baseScore
+        - double timeWeight
+        - double streakMultiplier
+        + ScoringSettings()
+        + ScoringSettings(int baseScore, double timeWeight, double streakMultiplier)
+        + getBaseScore(): int
+        + getTimeWeight(): double
+        + getStreakMultiplier(): double
+    }
+
+    class UserAnswer {
+        - String playerId
+        - String questionId
+        - int answerIndex
+        - long timeToAnswerMs
+        + UserAnswer(String playerId, String questionId, int answerIndex, long timeToAnswerMs)
+        + getPlayerId(): String
+        + getQuestionId(): String
+        + getAnswerIndex(): int
+        + getTimeToAnswerMs(): long
     }
 
     class PlayerResponse {
@@ -125,7 +142,7 @@ package "com.kubou.domain.entity" {
         - long timeTakenMs
         - int scoreAwarded
         - LocalDateTime timestamp
-        + PlayerResponse(String, String, String, String, int, boolean, long, int, LocalDateTime)
+        + PlayerResponse(String id, String gameSessionId, String playerId, String questionId, int selectedAnswerIndex, boolean isCorrect, long timeTakenMs, int scoreAwarded, LocalDateTime timestamp)
         + getId(): String
         + getGameSessionId(): String
         + getPlayerId(): String
@@ -137,148 +154,237 @@ package "com.kubou.domain.entity" {
         + getTimestamp(): LocalDateTime
     }
 
-    class Question {
+    class PlayerAchievement {
         - String id
-        - String text
-        - List<String> options
-        - int correctAnswerIndex
-        - List<String> tags
-        - int difficultyLevel
-        - String creatorId
-        + Question()
-        + Question(String, String, List<String>, int, List<String>, int)
-        + Question(String, String, List<String>, int, List<String>, int, String)
-        + getId(): String
-        + setId(String)
-        + getText(): String
-        + setText(String)
-        + getOptions(): List<String>
-        + setOptions(List<String>)
-        + getCorrectAnswerIndex(): int
-        + setCorrectAnswerIndex(int)
-        + getTags(): List<String>
-        + setTags(List<String>)
-        + getDifficultyLevel(): int
-        + setDifficultyLevel(int)
-        + getCreatorId(): String
-        + setCreatorId(String)
-    }
-
-    class Quiz {
-        - String id
-        - String title
-        - List<Question> questions
-        - String creatorId
-        + Quiz(String, String, List<Question>)
-        + Quiz(String, String, List<Question>, String)
-        + getId(): String
-        + setId(String)
-        + getTitle(): String
-        + setTitle(String)
-        + getQuestions(): List<Question>
-        + setQuestions(List<Question>)
-        + getCreatorId(): String
-        + setCreatorId(String)
-    }
-
-    class ScoringSettings {
-        - int baseScore
-        - double timeWeight
-        - double streakMultiplier
-        + ScoringSettings()
-        + ScoringSettings(int, double, double)
-        + getBaseScore(): int
-        + setBaseScore(int)
-        + getTimeWeight(): double
-        + setTimeWeight(double)
-        + getStreakMultiplier(): double
-        + setStreakMultiplier(double)
-    }
-
-    class Team {
-        - String id
-        - String name
-        - int score
-        - List<String> playerIds
-        + Team(String, String)
-        + getId(): String
-        + setId(String)
-        + getName(): String
-        + setName(String)
-        + getScore(): int
-        + setScore(int)
-        + getPlayerIds(): List<String>
-        + setPlayerIds(List<String>)
-        + addPlayer(String)
-    }
-
-    class UserAnswer {
         - String playerId
-        - String questionId
-        - int answerIndex
-        - long timeToAnswerMs
-        + UserAnswer(String, String, int, long)
+        - AchievementType type
+        - LocalDateTime unlockedAt
+        + PlayerAchievement(String id, String playerId, AchievementType type, LocalDateTime unlockedAt)
+        + getId(): String
         + getPlayerId(): String
-        + setPlayerId(String)
-        + getQuestionId(): String
-        + setQuestionId(String)
-        + getAnswerIndex(): int
-        + setAnswerIndex(int)
-        + getTimeToAnswerMs(): long
-        + setTimeToAnswerMs(long)
+        + getType(): AchievementType
+        + getUnlockedAt(): LocalDateTime
     }
 
-    ' Relationships
-    GameSession "1" *-- "1" GameConfig
-    GameSession "1" *-- "*" Player
-    GameSession "1" *-- "*" Team
-    GameSession "1" o-- "1" GameState
-    GameConfig "1" *-- "1" ScoringSettings
-    Quiz "1" *-- "*" Question
-    PlayerAchievement "*" o-- "1" AchievementType
-    
-    ' Associations (by ID references)
-    GameSession ..> Quiz : references quizId
-    GameSession ..> AppUser : references hostId
-    Player ..> AppUser : references userId (optional)
-    Team ..> Player : references playerIds
-    PlayerResponse ..> GameSession : references gameSessionId
-    PlayerResponse ..> Player : references playerId
-    PlayerResponse ..> Question : references questionId
-    UserAnswer ..> Player : references playerId
-    UserAnswer ..> Question : references questionId
-    PlayerAchievement ..> Player : references playerId
-    Quiz ..> AppUser : references creatorId
-    Question ..> AppUser : references creatorId
+    enum GameState {
+        LOBBY
+        IN_PROGRESS
+        QUESTION_RESULTS
+        FINISHED
+    }
 
+    enum AchievementType {
+        SNIPER
+        FLASH
+        TURBO
+        LUCKY
+    }
 }
 
 package "com.kubou.domain.service" {
     interface IGameModeEngine {
-        + handleNextState(GameSession, int): GameState
+        + handleNextState(GameSession session, int totalQuestions): GameState
     }
 
     interface IScoringStrategy {
-        + calculate(UserAnswer, Question, GameConfig, int): int
+        + calculate(UserAnswer answer, Question question, GameConfig config, int currentStreak): int
     }
 
     class LinearQuizEngine {
-        + handleNextState(GameSession, int): GameState
+        + handleNextState(GameSession session, int totalQuestions): GameState
     }
 
     class CustomScoringStrategy {
-        + calculate(UserAnswer, Question, GameConfig, int): int
+        + calculate(UserAnswer answer, Question question, GameConfig config, int currentStreak): int
+    }
+}
+
+package "com.kubou.application.repository" {
+    interface QuizRepository {
+        + findById(String id): Optional<Quiz>
+        + save(Quiz quiz): Quiz
+        + findAll(): List<Quiz>
+        + findByCreatorId(String creatorId): List<Quiz>
+        + deleteById(String id)
     }
 
-    IGameModeEngine <|.. LinearQuizEngine
-    IScoringStrategy <|.. CustomScoringStrategy
-    
-    ' Dependencies
-    IGameModeEngine ..> GameSession
-    IGameModeEngine ..> GameState
-    IScoringStrategy ..> UserAnswer
-    IScoringStrategy ..> Question
-    IScoringStrategy ..> GameConfig
+    interface UserRepository {
+        + findByUsername(String username): Optional<AppUser>
+        + save(AppUser user): AppUser
+        + existsByUsername(String username): boolean
+        + count(): long
+    }
+
+    interface QuestionRepository {
+        + save(Question question): Question
+        + findById(String id): Optional<Question>
+        + findAll(): List<Question>
+        + findAllById(List<String> ids): List<Question>
+        + findByCreatorId(String creatorId): List<Question>
+        + deleteById(String id)
+    }
+
+    interface GameSessionRepository {
+        + findById(String id): Optional<GameSession>
+        + findByPin(String pin): Optional<GameSession>
+        + findByHostId(String hostId): List<GameSession>
+        + findActiveSessionsByPlayerUserId(String userId): List<GameSession>
+        + save(GameSession gameSession)
+    }
+
+    interface PlayerResponseRepository {
+        + save(PlayerResponse response)
+        + findByGameSessionId(String gameSessionId): List<PlayerResponse>
+        + findByGameSessionIdAndQuestionId(String gameSessionId, String questionId): List<PlayerResponse>
+        + findByPlayerId(String playerId): List<PlayerResponse>
+        + findByPlayerIdAndDateRange(String playerId, LocalDateTime start, LocalDateTime end): List<PlayerResponse>
+    }
+
+    interface PlayerAchievementRepository {
+        + save(PlayerAchievement achievement)
+        + findByPlayerId(String playerId): List<PlayerAchievement>
+        + findAll(): List<PlayerAchievement>
+    }
 }
+
+package "com.kubou.application.usecase" {
+    class JoinGameUseCase {
+        - GameSessionJpaRepository gameSessionJpaRepository
+        - GameSessionMapper gameSessionMapper
+        + execute(String pin, Player player)
+    }
+
+    class StartGameUseCase {
+        - GameSessionRepository gameSessionRepository
+        - TeamService teamService
+        + execute(String gameId, String userId): GameSession
+    }
+
+    class CreateGameUseCase {
+        - GameSessionRepository gameSessionRepository
+        + execute(String quizId, String hostId): GameSession
+    }
+
+    class NextQuestionUseCase {
+        - GameSessionRepository gameSessionRepository
+        - QuizRepository quizRepository
+        - IGameModeEngine gameModeEngine
+        + execute(String gameId, String userId): GameSession
+    }
+
+    class SubmitAnswerUseCase {
+        - GameSessionRepository gameSessionRepository
+        - QuizRepository quizRepository
+        - PlayerResponseRepository playerResponseRepository
+        - IScoringStrategy scoringStrategy
+        + execute(String gameId, UserAnswer userAnswer): SubmitAnswerResult
+    }
+    
+    package "dto" {
+        class SubmitAnswerResult {
+            - int score
+            - boolean roundFinished
+            - boolean isCorrect
+            + SubmitAnswerResult(int score, boolean roundFinished, boolean isCorrect)
+            + getScore(): int
+            + isRoundFinished(): boolean
+            + isCorrect(): boolean
+        }
+    }
+}
+
+package "com.kubou.application.service" {
+    class TeamService {
+        + initializeTeams(GameSession session, int numberOfTeams)
+        + assignTeams(GameSession session)
+        + balanceTeams(GameSession session)
+    }
+}
+
+package "com.kubou.infrastructure.repository" {
+    class QuizRepositoryImpl
+    class UserRepositoryImpl
+    class QuestionRepositoryImpl
+    class GameSessionRepositoryImpl
+    class PlayerResponseRepositoryImpl
+    class PlayerAchievementRepositoryImpl
+}
+
+package "com.kubou.infrastructure.repository.jpa" {
+    interface QuizJpaRepository
+    interface UserJpaRepository
+    interface QuestionJpaRepository
+    interface GameSessionJpaRepository
+    interface PlayerResponseJpaRepository
+    interface PlayerAchievementJpaRepository
+}
+
+package "com.kubou.infrastructure.repository.jpa.model" {
+    class QuizData
+    class TeamData
+    class UserData
+    class PlayerData
+    class QuestionData
+    class GameSessionData
+    class PlayerResponseData
+    class PlayerAchievementData
+}
+
+' Relationships
+
+Quiz "1" *-- "0..*" Question : contains
+GameSession "1" o-- "1" Quiz : references
+GameSession "1" *-- "0..*" Player : contains
+GameSession "1" *-- "0..*" Team : contains
+GameSession "1" *-- "1" GameConfig : uses
+GameSession "1" --> "1" GameState : has state
+GameConfig "1" *-- "1" ScoringSettings : contains
+Team "0..*" o-- "0..*" Player : references (via IDs)
+PlayerAchievement "0..*" --> "1" AchievementType : has type
+PlayerAchievement "0..*" --> "1" Player : belongs to (via ID)
+PlayerResponse "0..*" --> "1" GameSession : belongs to (via ID)
+PlayerResponse "0..*" --> "1" Player : belongs to (via ID)
+PlayerResponse "0..*" --> "1" Question : answers (via ID)
+
+LinearQuizEngine ..|> IGameModeEngine
+CustomScoringStrategy ..|> IScoringStrategy
+
+JoinGameUseCase ..> GameSessionJpaRepository : uses
+JoinGameUseCase ..> GameSessionMapper : uses
+StartGameUseCase ..> GameSessionRepository : uses
+StartGameUseCase ..> TeamService : uses
+CreateGameUseCase ..> GameSessionRepository : uses
+NextQuestionUseCase ..> GameSessionRepository : uses
+NextQuestionUseCase ..> QuizRepository : uses
+NextQuestionUseCase ..> IGameModeEngine : uses
+SubmitAnswerUseCase ..> GameSessionRepository : uses
+SubmitAnswerUseCase ..> QuizRepository : uses
+SubmitAnswerUseCase ..> PlayerResponseRepository : uses
+SubmitAnswerUseCase ..> IScoringStrategy : uses
+SubmitAnswerUseCase ..> SubmitAnswerResult : produces
+
+QuizRepositoryImpl ..|> QuizRepository
+UserRepositoryImpl ..|> UserRepository
+QuestionRepositoryImpl ..|> QuestionRepository
+GameSessionRepositoryImpl ..|> GameSessionRepository
+PlayerResponseRepositoryImpl ..|> PlayerResponseRepository
+PlayerAchievementRepositoryImpl ..|> PlayerAchievementRepository
+
+QuizRepositoryImpl ..> QuizJpaRepository : uses
+UserRepositoryImpl ..> UserJpaRepository : uses
+QuestionRepositoryImpl ..> QuestionJpaRepository : uses
+GameSessionRepositoryImpl ..> GameSessionJpaRepository : uses
+PlayerResponseRepositoryImpl ..> PlayerResponseJpaRepository : uses
+PlayerAchievementRepositoryImpl ..> PlayerAchievementJpaRepository : uses
+
+GameSessionJpaRepository ..> GameSessionData : manages
+QuizJpaRepository ..> QuizData : manages
+UserJpaRepository ..> UserData : manages
+QuestionJpaRepository ..> QuestionData : manages
+PlayerResponseJpaRepository ..> PlayerResponseData : manages
+PlayerAchievementJpaRepository ..> PlayerAchievementData : manages
+
+GameSessionData *-- PlayerData : contains
+GameSessionData *-- TeamData : contains
 
 @enduml

@@ -653,7 +653,7 @@ onUnmounted(() => {
             @click="submitAnswer(index)"
             :disabled="answerSubmitted || isHost || roundFinished || timeRemaining <= 0"
             :class="[
-              'p-8 rounded-xl text-2xl font-bold text-white shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center h-32 relative overflow-hidden',
+              'p-4 md:p-8 rounded-xl text-lg md:text-2xl font-bold text-white shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-95 flex items-center justify-center min-h-32 h-auto relative overflow-hidden',
               index === 0 ? 'bg-red-500 hover:bg-red-600 shadow-red-500/50' :
               index === 1 ? 'bg-blue-500 hover:bg-blue-600 shadow-blue-500/50' :
               index === 2 ? 'bg-yellow-500 hover:bg-yellow-600 shadow-yellow-500/50' :
@@ -665,7 +665,7 @@ onUnmounted(() => {
               showCorrectAnswer && correctAnswerIndex !== index ? 'opacity-20' : ''
             ]"
           >
-            <span class="mr-4 opacity-50 text-3xl">
+            <span class="mr-2 md:mr-4 opacity-50 text-2xl md:text-3xl flex-shrink-0">
                 {{ index === 0 ? '▲' : index === 1 ? '◆' : index === 2 ? '●' : '■' }}
             </span>
             {{ option }}
