@@ -27,6 +27,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -85,6 +87,22 @@ public class GameController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+    
+    @PostMapping("/api/v1/games/{gameId}/sync-time")
+    @ResponseBody
+    @Operation(summary = "Get current question start time for sync")
+    public ResponseEntity<Map<String, Object>> getSyncTime(@PathVariable String gameId) {
+        return gameSessionRepository.findById(gameId)
+                .map(session -> {
+                    Map<String, Object> response = new HashMap<>();
+                    if (session.getCurrentQuestionStartTime() != null) {
+                        response.put("startTime", session.getCurrentQuestionStartTime().toInstant(ZoneOffset.UTC).toEpochMilli());
+                        response.put("serverTime", System.currentTimeMillis());
+                    }
+                    return ResponseEntity.ok(response);
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 
     // --- WEBSOCKET HANDLERS ---
 
@@ -112,14 +130,39 @@ public class GameController {
         gameSessionRepository.findByPin(request.getPin()).ifPresent(session -> {
             String pinDestination = "/topic/lobby/" + request.getPin() + "/players";
             messagingTemplate.convertAndSend(pinDestination, session.getPlayers());
-            
+
             String idDestination = "/topic/lobby/" + session.getId() + "/players";
             messagingTemplate.convertAndSend(idDestination, session.getPlayers());
 
+            // Broadcast progress update to host if game is in progress
+            if (session.getState() == GameState.IN_PROGRESS) {
+                try {
+                    Quiz quiz = quizRepository.findById(session.getQuizId()).orElseThrow();
+                    long answeredCount = 0;
+                    if (session.getCurrentQuestionIndex() >= 0 && session.getCurrentQuestionIndex() < quiz.getQuestions().size()) {
+                        String questionId = quiz.getQuestions().get(session.getCurrentQuestionIndex()).getId();
+                        List<PlayerResponse> responses = playerResponseRepository.findByGameSessionIdAndQuestionId(session.getId(), questionId);
+                        answeredCount = responses.stream().map(PlayerResponse::getPlayerId).distinct().count();
+                    }
+
+                    messagingTemplate.convertAndSend("/topic/game/" + session.getId() + "/progress", Map.of(
+                        "answeredCount", answeredCount,
+                        "totalPlayers", session.getPlayers().size()
+                    ));
+
+                } catch (Exception e) {
+                    logger.error("Error updating progress on join", e);
+                }
+            }
+
             messagingTemplate.convertAndSendToUser(
-                principal.getName(), 
-                "/queue/lobby/joined", 
-                Map.of("gameId", session.getId(), "pin", session.getPin())
+                principal.getName(),
+                "/queue/lobby/joined",
+                Map.of(
+                    "gameId", session.getId(),
+                    "pin", session.getPin(),
+                    "state", session.getState()
+                )
             );
         });
     }
@@ -145,28 +188,30 @@ public class GameController {
         if (principal == null) {
             throw new IllegalStateException("L'utilisateur doit être authentifié pour passer à la question suivante.");
         }
+        
+        // Execute state transition
         GameSession session = nextQuestionUseCase.execute(gameId, principal.getName());
         
+        // Handle the NEW state
         if (session.getState() == GameState.FINISHED) {
             logger.info("[GAME_CONTROLLER] END_GAME_HOOK called via nextQuestion for session {}", gameId);
-            // Send final leaderboard and podium
             broadcastLeaderboard(gameId);
-            
-            // Award End Game Achievements (Safe)
             try {
                 achievementService.awardEndGameAchievements(session);
             } catch (Exception e) {
                 logger.error("Failed to award achievements for gameId: {}", gameId, e);
             }
-            
             messagingTemplate.convertAndSend("/topic/game/" + gameId + "/finished", "Game Over!");
+            
         } else if (session.getState() == GameState.QUESTION_RESULTS) {
-             // Transitioned to Results (End of Question)
+             // We just transitioned TO results (meaning the round ended)
+             // We must broadcast the correct answer and leaderboard NOW.
              broadcastCorrectAnswer(gameId, session);
              broadcastLeaderboard(gameId);
              messagingTemplate.convertAndSend("/topic/game/" + gameId + "/round_end", "Round Finished");
-        } else {
-            // Transitioned to In Progress (Next Question)
+             
+        } else if (session.getState() == GameState.IN_PROGRESS) {
+            // We just transitioned TO in_progress (meaning a NEW question started)
             sendQuestion(session);
         }
     }
@@ -190,6 +235,23 @@ public class GameController {
                 .filter(p -> userId.equals(p.getUserId()) || (p.getUserId() == null && userId.equals(p.getId())))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Player not found in session"));
+
+        // --- BACKEND TIMER VALIDATION ---
+        // Validate against server start time if available
+        if (session.getCurrentQuestionStartTime() != null) {
+            long elapsed = System.currentTimeMillis() - session.getCurrentQuestionStartTime().toInstant(ZoneOffset.UTC).toEpochMilli();
+            // Allow 30s + 5s grace period
+            if (elapsed > 35000) {
+                 messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time expired"));
+                 return;
+            }
+        } else {
+            // Fallback if start time not set (should not happen with new logic)
+            if (request.getTimeToAnswerMs() > 35000 || request.getTimeToAnswerMs() < 0) {
+                 messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time invalid"));
+                 return;
+            }
+        }
 
         UserAnswer userAnswer = new UserAnswer(player.getId(), request.getQuestionId(), request.getAnswerIndex(), request.getTimeToAnswerMs());
         int score = submitAnswerUseCase.execute(gameId, userAnswer);
@@ -249,6 +311,26 @@ public class GameController {
                 
                 String idDestination = "/topic/lobby/" + session.getId() + "/players";
                 messagingTemplate.convertAndSend(idDestination, session.getPlayers());
+                
+                // Broadcast progress update to host if game is in progress
+                if (session.getState() == GameState.IN_PROGRESS) {
+                    // Better: Fetch current question ID to get answered count
+                    try {
+                        Quiz quiz = quizRepository.findById(session.getQuizId()).orElseThrow();
+                        if (session.getCurrentQuestionIndex() >= 0 && session.getCurrentQuestionIndex() < quiz.getQuestions().size()) {
+                            String questionId = quiz.getQuestions().get(session.getCurrentQuestionIndex()).getId();
+                            List<PlayerResponse> responses = playerResponseRepository.findByGameSessionIdAndQuestionId(gameId, questionId);
+                            long answeredCount = responses.stream().map(PlayerResponse::getPlayerId).distinct().count();
+                            
+                            messagingTemplate.convertAndSend("/topic/game/" + gameId + "/progress", Map.of(
+                                "answeredCount", answeredCount,
+                                "totalPlayers", session.getPlayers().size()
+                            ));
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error updating progress on leave", e);
+                    }
+                }
             }
         });
     }
@@ -282,12 +364,26 @@ public class GameController {
         Quiz quiz = quizRepository.findById(session.getQuizId()).orElseThrow();
         Question question = quiz.getQuestions().get(session.getCurrentQuestionIndex());
         
+        // Set start time
+        session.setCurrentQuestionStartTime(LocalDateTime.now(ZoneOffset.UTC));
+        gameSessionRepository.save(session);
+        
+        long startTimeEpoch = session.getCurrentQuestionStartTime().toInstant(ZoneOffset.UTC).toEpochMilli();
+        
         // Send question to players (without correct answer)
         Question clientQuestion = new Question(question.getId(), question.getText(), question.getOptions(), -1, question.getTags(), question.getDifficultyLevel());
-        messagingTemplate.convertAndSend("/topic/game/" + session.getId() + "/question", clientQuestion);
+        
+        // Wrap question with metadata including start time
+        Map<String, Object> clientPayload = new HashMap<>();
+        clientPayload.put("id", clientQuestion.getId());
+        clientPayload.put("text", clientQuestion.getText());
+        clientPayload.put("options", clientQuestion.getOptions());
+        clientPayload.put("difficultyLevel", clientQuestion.getDifficultyLevel());
+        clientPayload.put("startTime", startTimeEpoch);
+        
+        messagingTemplate.convertAndSend("/topic/game/" + session.getId() + "/question", clientPayload);
         
         // Send question to host (WITHOUT correct answer as requested)
-        // We use a Map to add extra metadata if needed by frontend
         Map<String, Object> hostQuestionPayload = new HashMap<>();
         hostQuestionPayload.put("id", question.getId());
         hostQuestionPayload.put("text", question.getText());
@@ -295,7 +391,8 @@ public class GameController {
         hostQuestionPayload.put("correctAnswerIndex", -1); // Hidden
         hostQuestionPayload.put("tags", question.getTags());
         hostQuestionPayload.put("difficultyLevel", question.getDifficultyLevel());
-        hostQuestionPayload.put("isHost", true); // Hint for frontend to render differently if needed (e.g. disabled buttons but with colors)
+        hostQuestionPayload.put("isHost", true);
+        hostQuestionPayload.put("startTime", startTimeEpoch);
 
         messagingTemplate.convertAndSend("/topic/game/" + session.getId() + "/host/question", hostQuestionPayload);
     }

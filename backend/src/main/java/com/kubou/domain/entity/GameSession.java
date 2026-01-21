@@ -1,5 +1,6 @@
 package com.kubou.domain.entity;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,6 +17,9 @@ public class GameSession {
     // Team Mode Support
     private boolean isTeamMode;
     private List<Team> teams;
+    
+    // Timer Sync
+    private LocalDateTime currentQuestionStartTime;
 
     public GameSession(String id, String pin, String quizId, String hostId) {
         this.id = id;
@@ -52,6 +56,9 @@ public class GameSession {
     public void setTeamMode(boolean teamMode) { isTeamMode = teamMode; }
     public List<Team> getTeams() { return teams; }
     public void setTeams(List<Team> teams) { this.teams = teams; }
+    
+    public LocalDateTime getCurrentQuestionStartTime() { return currentQuestionStartTime; }
+    public void setCurrentQuestionStartTime(LocalDateTime currentQuestionStartTime) { this.currentQuestionStartTime = currentQuestionStartTime; }
 
     public void addPlayer(Player player) {
         this.players.add(player);

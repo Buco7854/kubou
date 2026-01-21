@@ -2,6 +2,7 @@ package com.kubou.infrastructure.repository.jpa.model;
 
 import com.kubou.domain.entity.GameState;
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -34,6 +35,9 @@ public class GameSessionData {
     
     // Team Mode
     private boolean isTeamMode;
+    
+    // Timer Sync
+    private LocalDateTime currentQuestionStartTime;
 
     // Getters and Setters
     public String getId() { return id; }
@@ -62,6 +66,9 @@ public class GameSessionData {
     
     public boolean isTeamMode() { return isTeamMode; }
     public void setTeamMode(boolean teamMode) { isTeamMode = teamMode; }
+    
+    public LocalDateTime getCurrentQuestionStartTime() { return currentQuestionStartTime; }
+    public void setCurrentQuestionStartTime(LocalDateTime currentQuestionStartTime) { this.currentQuestionStartTime = currentQuestionStartTime; }
 
     @Override
     public boolean equals(Object o) {

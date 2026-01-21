@@ -38,6 +38,7 @@ public class SubmitAnswerUseCase {
 
     @Transactional
     public int execute(String gameId, UserAnswer userAnswer) {
+        // Fetch fresh session to get latest player count
         GameSession gameSession = gameSessionRepository.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game session not found"));
 
@@ -99,11 +100,9 @@ public class SubmitAnswerUseCase {
         List<PlayerResponse> responses = playerResponseRepository.findByGameSessionIdAndQuestionId(gameId, question.getId());
         
         long answeredCount = responses.stream().map(PlayerResponse::getPlayerId).distinct().count();
-        boolean currentIncluded = responses.stream().anyMatch(r -> r.getPlayerId().equals(player.getId()));
-        if (!currentIncluded) {
-            answeredCount++;
-        }
-
+        
+        // IMPORTANT: We must compare against the CURRENT number of players in the session.
+        // Since we fetched the session at the start of the method, gameSession.getPlayers().size() is up to date.
         if (answeredCount >= gameSession.getPlayers().size()) {
             // All players answered, move to QUESTION_RESULTS state
             gameSession.setState(GameState.QUESTION_RESULTS);

@@ -10,10 +10,13 @@ public class LinearQuizEngine implements IGameModeEngine {
     @Override
     public GameState handleNextState(GameSession session, int totalQuestions) {
         if (session.getState() == GameState.IN_PROGRESS) {
-            // After a question is finished (all answered or timeout), we go to results
+            // If we are currently IN_PROGRESS, it means the host clicked "Next" (or timeout happened)
+            // while players were answering.
+            // The logical next step is to show the results for THIS question.
             return GameState.QUESTION_RESULTS;
         } else if (session.getState() == GameState.QUESTION_RESULTS) {
-            // From results, we go to the next question or finish
+            // If we are currently showing results, the next step is either the NEXT question
+            // or FINISH if there are no more questions.
             int nextQuestionIndex = session.getCurrentQuestionIndex() + 1;
             if (nextQuestionIndex < totalQuestions) {
                 session.setCurrentQuestionIndex(nextQuestionIndex);
@@ -21,8 +24,12 @@ public class LinearQuizEngine implements IGameModeEngine {
             } else {
                 return GameState.FINISHED;
             }
+        } else if (session.getState() == GameState.LOBBY) {
+            // From Lobby, we start the first question (index 0)
+            session.setCurrentQuestionIndex(0);
+            return GameState.IN_PROGRESS;
         }
-        // If the game is in Lobby or Finished, it remains in that state.
+
         return session.getState();
     }
 }
