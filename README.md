@@ -140,7 +140,7 @@ Immédiatement après le calcul :
 *   **Solution Technique :**
     1.  Appel **HTTP POST** `/api/v1/smart-review/generate`.
     2.  Le `SmartReviewService` interroge le `PlayerResponseRepository`.
-    3.  Il filtre toutes les réponses où `isCorrect = false` sur les 30 derniers jours.
+    3.  Il filtre toutes les réponses où `isCorrect = false` (historique complet).
     4.  Il récupère les questions originales via `QuestionRepository`.
     5.  Il génère un nouvel objet `Quiz` (non persisté ou temporaire) contenant uniquement ces questions.
 
