@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { QuizDTO } from '../interface_adapter/controller/dto/QuizDTO' // Assuming this path
+import type { QuizDTO } from '../types/quiz'
 
 export const useSmartReviewStore = defineStore('smartReview', {
   state: () => ({

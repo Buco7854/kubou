@@ -60,8 +60,11 @@ const connectWebSocket = () => {
       return
   }
 
-  // Use relative path for WebSocket connection to work with Nginx proxy
-  const socket = new SockJS('/ws')
+  // Use absolute URL for WebSocket connection to work with Nginx proxy
+  // When running locally with Vite proxy, this will be proxied correctly if configured
+  // When running in production behind Nginx, this should point to the correct endpoint
+  const socketUrl = import.meta.env.VITE_WS_URL || '/ws';
+  const socket = new SockJS(socketUrl)
 
   stompClient.value = new Client({
     webSocketFactory: () => socket,
