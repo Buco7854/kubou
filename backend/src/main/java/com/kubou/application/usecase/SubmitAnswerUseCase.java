@@ -85,7 +85,7 @@ public class SubmitAnswerUseCase {
         PlayerResponse response = new PlayerResponse(
                 UUID.randomUUID().toString(),
                 gameId,
-                player.getId(),
+                player.getUserId(), // Changed from player.getId() to player.getUserId()
                 question.getId(),
                 userAnswer.getAnswerIndex(),
                 isCorrect,

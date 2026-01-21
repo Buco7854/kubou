@@ -3,11 +3,13 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
+import { useSmartReviewStore } from '../stores/smartReview' // Import the new store
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const smartReviewStore = useSmartReviewStore() // Initialize the new store
 const gamePin = ref('')
 const isGenerating = ref(false)
 const activeSessions = ref<any[]>([])
@@ -100,12 +102,13 @@ const generateSmartReview = async () => {
             headers: { Authorization: `Bearer ${token}` }
         })
 
-        if (response.status === 204) {
+        if (response.status === 204 || response.data.questions.length === 0) { // Check for empty questions array
             alert("Bravo ! Vous n'avez pas assez d'erreurs pour générer un quiz de rattrapage.")
         } else {
             const quiz = response.data
+            smartReviewStore.setSmartReviewQuiz(quiz) // Store the quiz in Pinia
             alert(`Quiz de rattrapage généré : ${quiz.title}`)
-            router.push(`/quiz/${quiz.id}`)
+            router.push(`/smart-review-quiz`) // Navigate to the new route
         }
     } catch (error) {
         console.error("Failed to generate review", error)
