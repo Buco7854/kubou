@@ -245,25 +245,25 @@ public class GameController {
                     .orElseThrow(() -> new RuntimeException("Player not found in session"));
 
 
-        // --- BACKEND TIMER VALIDATION ---
-        // Validate against server start time if available
-        if (session.getCurrentQuestionStartTime() != null) {
-            long elapsed = System.currentTimeMillis() - session.getCurrentQuestionStartTime().toInstant(ZoneOffset.UTC).toEpochMilli();
-            // Allow 30s + 5s grace period
-            if (elapsed > 35000) {
-                 messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time expired"));
-                 return;
+            // --- BACKEND TIMER VALIDATION ---
+            // Validate against server start time if available
+            if (session.getCurrentQuestionStartTime() != null) {
+                long elapsed = System.currentTimeMillis() - session.getCurrentQuestionStartTime().toInstant(ZoneOffset.UTC).toEpochMilli();
+                // Allow 30s + 5s grace period
+                if (elapsed > 35000) {
+                    messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time expired"));
+                    return;
+                }
+            } else {
+                // Fallback if start time not set (should not happen with new logic)
+                if (request.getTimeToAnswerMs() > 35000 || request.getTimeToAnswerMs() < 0) {
+                    messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time invalid"));
+                    return;
+                }
             }
-        } else {
-            // Fallback if start time not set (should not happen with new logic)
-            if (request.getTimeToAnswerMs() > 35000 || request.getTimeToAnswerMs() < 0) {
-                 messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/result", Map.of("pointsAwarded", 0, "error", "Time invalid"));
-                 return;
-            }
-        }
 
-        UserAnswer userAnswer = new UserAnswer(player.getId(), request.getQuestionId(), request.getAnswerIndex(), request.getTimeToAnswerMs());
-        SubmitAnswerResult result = submitAnswerUseCase.execute(gameId, userAnswer);
+            UserAnswer userAnswer = new UserAnswer(player.getId(), request.getQuestionId(), request.getAnswerIndex(), request.getTimeToAnswerMs());
+            SubmitAnswerResult result = submitAnswerUseCase.execute(gameId, userAnswer);
 
             // 2. ENVOI DES INFOS WS (CRITIQUE POUR L'UI)
             // A. Info pour l'hôte (un joueur a répondu)
