@@ -30,12 +30,6 @@ const achievementMetadata: Record<string, { label: string, description: string, 
         icon: '🚀',
         color: 'border-orange-500'
     },
-    'COMEBACK': { 
-        label: 'Comeback', 
-        description: 'Bonne réponse après une erreur', 
-        icon: '🛡️',
-        color: 'border-blue-400'
-    },
     'LUCKY': { 
         label: 'Chanceux', 
         description: 'Bonne réponse sur une question difficile', 
@@ -72,6 +66,27 @@ const fetchAchievements = async () => {
         isGuest.value = response.data.guest
         guestMessage.value = response.data.message
         achievements.value = response.data.achievements
+
+        // Check local storage for recently unlocked achievements during game
+        const recentlyUnlocked = JSON.parse(localStorage.getItem('recentlyUnlockedAchievements') || '[]')
+        
+        if (recentlyUnlocked.length > 0) {
+            // Merge server data with local unlocks
+            achievements.value = achievements.value.map(ach => {
+                // If achievement is in local storage list AND not yet unlocked on server side (or just to be sure)
+                if (recentlyUnlocked.includes(ach.type) && !ach.unlocked) {
+                    return { 
+                        ...ach, 
+                        unlocked: true, 
+                        unlockedAt: new Date() // Use current date as fallback
+                    }
+                }
+                return ach
+            })
+            
+            // Optional: Clear local storage after syncing, or keep it for a session
+            // localStorage.removeItem('recentlyUnlockedAchievements') 
+        }
 
     } catch (error) {
         console.error("Failed to fetch achievements", error)
@@ -111,20 +126,15 @@ onMounted(() => {
         </div>
     </div>
 
-    <!-- Empty State (User) -->
-    <div v-if="!isGuest && achievements.length === 0" class="text-center text-gray-500 py-12 bg-white rounded-lg shadow">
-        <div class="text-4xl mb-3">🔒</div>
-        <p>Vous n'avez pas encore débloqué de succès.</p>
-        <p class="text-sm mt-2">Jouez des parties pour gagner des badges !</p>
-    </div>
-
     <!-- Achievements Grid -->
     <div v-if="achievements.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="achievement in achievements" :key="achievement.id" 
-             class="bg-white overflow-hidden shadow-md rounded-lg border-l-4 transition hover:shadow-lg"
-             :class="getMetadata(achievement.type).color">
+        <div v-for="achievement in achievements" :key="achievement.type" 
+             class="bg-white overflow-hidden shadow-md rounded-lg border-l-4 transition hover:shadow-lg relative"
+             :class="[
+                achievement.unlocked ? getMetadata(achievement.type).color : 'border-gray-300 bg-gray-50'
+             ]">
             <div class="px-4 py-5 sm:p-6">
-                <div class="flex items-start">
+                <div class="flex items-start" :class="{ 'opacity-50 grayscale': !achievement.unlocked }">
                     <div class="flex-shrink-0 bg-gray-50 rounded-full p-3 shadow-sm">
                         <span class="text-3xl">{{ getMetadata(achievement.type).icon }}</span>
                     </div>
@@ -135,8 +145,11 @@ onMounted(() => {
                         <dd class="mt-1 text-sm text-gray-600">
                             {{ getMetadata(achievement.type).description }}
                         </dd>
-                        <dd class="mt-2 text-xs text-gray-400">
+                        <dd v-if="achievement.unlocked" class="mt-2 text-xs text-green-600 font-semibold">
                             Obtenu le {{ formatDate(achievement.unlockedAt) }}
+                        </dd>
+                        <dd v-else class="mt-2 text-xs text-gray-500 font-semibold flex items-center">
+                            <span class="mr-1">🔒</span> Verrouillé
                         </dd>
                     </div>
                 </div>

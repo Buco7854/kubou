@@ -1,14 +1,13 @@
 package com.kubou.interface_adapter.controller.dto;
 
-import com.kubou.domain.entity.PlayerAchievement;
 import java.util.List;
 
 public class AchievementResponse {
     private boolean isGuest;
     private String message;
-    private List<PlayerAchievement> achievements;
+    private List<AchievementDto> achievements;
 
-    public AchievementResponse(boolean isGuest, String message, List<PlayerAchievement> achievements) {
+    public AchievementResponse(boolean isGuest, String message, List<AchievementDto> achievements) {
         this.isGuest = isGuest;
         this.message = message;
         this.achievements = achievements;
@@ -18,6 +17,6 @@ public class AchievementResponse {
     public void setGuest(boolean guest) { isGuest = guest; }
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
-    public List<PlayerAchievement> getAchievements() { return achievements; }
-    public void setAchievements(List<PlayerAchievement> achievements) { this.achievements = achievements; }
+    public List<AchievementDto> getAchievements() { return achievements; }
+    public void setAchievements(List<AchievementDto> achievements) { this.achievements = achievements; }
 }
