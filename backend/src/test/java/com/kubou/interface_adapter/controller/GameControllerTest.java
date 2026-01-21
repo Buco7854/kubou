@@ -8,6 +8,7 @@ import com.kubou.application.usecase.JoinGameUseCase;
 import com.kubou.application.usecase.NextQuestionUseCase;
 import com.kubou.application.usecase.StartGameUseCase;
 import com.kubou.application.usecase.SubmitAnswerUseCase;
+import com.kubou.application.usecase.dto.SubmitAnswerResult;
 import com.kubou.domain.entity.GameSession;
 import com.kubou.domain.entity.GameState;
 import com.kubou.domain.entity.Player;
@@ -141,7 +142,11 @@ class GameControllerTest {
         
         when(gameSessionRepository.findById("g1")).thenReturn(Optional.of(session));
         when(quizRepository.findById("q1")).thenReturn(Optional.of(quiz));
-        when(submitAnswerUseCase.execute(anyString(), any())).thenReturn(100);
+        
+        // Fix: Return SubmitAnswerResult instead of int
+        SubmitAnswerResult result = new SubmitAnswerResult(100, false, true);
+        when(submitAnswerUseCase.execute(anyString(), any())).thenReturn(result);
+        
         when(playerResponseRepository.findByGameSessionIdAndQuestionId("g1", "q1")).thenReturn(Collections.emptyList());
         
         SubmitAnswerRequest request = new SubmitAnswerRequest();

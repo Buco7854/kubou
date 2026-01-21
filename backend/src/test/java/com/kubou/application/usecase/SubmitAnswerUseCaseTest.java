@@ -48,6 +48,8 @@ class SubmitAnswerUseCaseTest {
         GameSession session = new GameSession(gameId, "123", "quiz1", "host");
         Player player = new Player(playerId, "user1", "Nick");
         session.getPlayers().add(player);
+        // Add a second player so round is not finished
+        session.getPlayers().add(new Player("p2", "user2", "Player 2"));
         
         Quiz quiz = new Quiz("quiz1", "Title", new ArrayList<>());
         Question question = new Question(questionId, "Text", Collections.emptyList(), 0, Collections.emptyList(), 1);
