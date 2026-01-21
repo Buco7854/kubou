@@ -13,7 +13,8 @@ public class PlayerResponse {
     private int scoreAwarded;
     private LocalDateTime timestamp;
 
-    public PlayerResponse(String id, String gameSessionId, String playerId, String questionId, int selectedAnswerIndex, boolean isCorrect, long timeTakenMs, int scoreAwarded, LocalDateTime timestamp) {
+    public PlayerResponse(String id, String gameSessionId, String playerId, String questionId, int selectedAnswerIndex,
+                          boolean isCorrect, long timeTakenMs, int scoreAwarded, LocalDateTime timestamp) {
         this.id = id;
         this.gameSessionId = gameSessionId;
         this.playerId = playerId;
@@ -25,7 +26,6 @@ public class PlayerResponse {
         this.timestamp = timestamp;
     }
 
-    // Getters
     public String getId() { return id; }
     public String getGameSessionId() { return gameSessionId; }
     public String getPlayerId() { return playerId; }
