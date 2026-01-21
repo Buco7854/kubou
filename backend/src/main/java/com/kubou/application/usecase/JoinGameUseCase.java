@@ -43,7 +43,8 @@ public class JoinGameUseCase {
                         .ifPresent(smallestTeam -> smallestTeam.getPlayerIds().add(player.getId()));
             }
             
-            // No explicit save needed; transaction commit will flush changes to managed entity
+            // Explicitly save to ensure the new player is persisted immediately
+            gameSessionJpaRepository.saveAndFlush(gameSessionData);
         } else {
             // Optional: Update existing player info (e.g. nickname) if needed, or just ignore
             // For now, we just don't add a duplicate entry.

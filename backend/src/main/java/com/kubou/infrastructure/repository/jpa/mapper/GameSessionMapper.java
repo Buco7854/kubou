@@ -27,6 +27,7 @@ public class GameSessionMapper {
         data.setCurrentQuestionIndex(session.getCurrentQuestionIndex());
         data.setState(session.getState());
         data.setTeamMode(session.isTeamMode());
+        data.setCurrentQuestionStartTime(session.getCurrentQuestionStartTime());
         
         // Map Scoring Settings
         if (session.getGameConfig() != null && session.getGameConfig().getScoringSettings() != null) {
@@ -79,7 +80,8 @@ public class GameSessionMapper {
         session.setCurrentQuestionIndex(data.getCurrentQuestionIndex());
         session.setState(data.getState());
         session.setTeamMode(data.isTeamMode());
-        
+        session.setCurrentQuestionStartTime(data.getCurrentQuestionStartTime());
+
         // Map Scoring Settings back
         ScoringSettings settings = new ScoringSettings(data.getBaseScore(), data.getTimeWeight(), data.getStreakMultiplier());
         session.setGameConfig(new GameConfig(settings));

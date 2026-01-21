@@ -27,7 +27,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/v1/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/ws/**").permitAll()
                 .requestMatchers("/api/v1/games/by-pin/**").permitAll()
-                
+
+                // Allow sync-time for all authenticated users (including guests)
+                .requestMatchers("/api/v1/games/*/sync-time").authenticated()
+
                 // Restrict creation endpoints to USER or ADMIN roles (exclude GUEST)
                 .requestMatchers(HttpMethod.POST, "/api/v1/quizzes/**").hasAnyRole("USER", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/v1/quizzes/**").hasAnyRole("USER", "ADMIN")
