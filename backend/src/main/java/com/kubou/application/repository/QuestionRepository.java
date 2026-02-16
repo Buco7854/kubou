@@ -6,6 +6,7 @@ import java.util.Optional;
 
 public interface QuestionRepository {
     Question save(Question question);
+    List<Question> saveAll(List<Question> questions);
     Optional<Question> findById(String id);
     List<Question> findAll();
     List<Question> findAllById(List<String> ids);

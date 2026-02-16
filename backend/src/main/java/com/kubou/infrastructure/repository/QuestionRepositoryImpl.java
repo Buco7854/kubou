@@ -32,6 +32,18 @@ public class QuestionRepositoryImpl implements QuestionRepository {
     }
 
     @Override
+    @Transactional
+    public List<Question> saveAll(List<Question> questions) {
+        List<QuestionData> dataList = questions.stream()
+                .map(quizMapper::toQuestionData)
+                .collect(Collectors.toList());
+        List<QuestionData> savedList = questionJpaRepository.saveAll(dataList);
+        return savedList.stream()
+                .map(quizMapper::toQuestionDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public Optional<Question> findById(String id) {
         return questionJpaRepository.findById(id).map(quizMapper::toQuestionDomain);
