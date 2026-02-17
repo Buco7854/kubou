@@ -20,6 +20,9 @@ public class UserData {
     @Column(name = "role")
     private Set<String> roles;
 
+    @Column(nullable = false, columnDefinition = "varchar(10) default 'fr'")
+    private String language = "fr";
+
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getUsername() { return username; }
@@ -28,4 +31,6 @@ public class UserData {
     public void setPassword(String password) { this.password = password; }
     public Set<String> getRoles() { return roles; }
     public void setRoles(Set<String> roles) { this.roles = roles; }
+    public String getLanguage() { return language; }
+    public void setLanguage(String language) { this.language = language; }
 }

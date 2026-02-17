@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -48,14 +50,14 @@ const quizIdRef = ref<string>('') // Store quizId for redirection
 
 // Achievement Metadata - ONLY ACTIVE BADGES
 const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
-    'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'border-red-500', bg: 'from-red-500 to-red-700' },
-    'FLASH': { label: 'Flash', description: 'Réponse correcte en moins de 1 seconde', icon: '⚡', color: 'border-yellow-400', bg: 'from-yellow-400 to-yellow-600' },
-    'TURBO': { label: 'Turbo', description: '3 réponses rapides (< 5s) d\'affilée', icon: '🚀', color: 'border-orange-500', bg: 'from-orange-500 to-orange-700' },
-    'LUCKY': { label: 'Chanceux', description: 'Bonne réponse sur une question difficile', icon: '🍀', color: 'border-green-500', bg: 'from-green-500 to-green-700' }
+    'SNIPER': { label: t('achievements.sniper.label'), description: t('achievements.sniper.description'), icon: '🎯', color: 'border-red-500', bg: 'from-red-500 to-red-700' },
+    'FLASH': { label: t('achievements.flash.label'), description: t('achievements.flash.description'), icon: '⚡', color: 'border-yellow-400', bg: 'from-yellow-400 to-yellow-600' },
+    'TURBO': { label: t('achievements.turbo.label'), description: t('achievements.turbo.description'), icon: '🚀', color: 'border-orange-500', bg: 'from-orange-500 to-orange-700' },
+    'LUCKY': { label: t('achievements.lucky.label'), description: t('achievements.lucky.description'), icon: '🍀', color: 'border-green-500', bg: 'from-green-500 to-green-700' }
 }
 
 const getMetadata = (type: string) => {
-    return achievementMetadata[type] || { label: type, description: 'Succès débloqué', icon: '🏆', color: 'border-yellow-200', bg: 'from-yellow-400 to-yellow-600' }
+    return achievementMetadata[type] || { label: type, description: t('achievements.defaultDescription'), icon: '🏆', color: 'border-yellow-200', bg: 'from-yellow-400 to-yellow-600' }
 }
 
 const updateMyTeamName = () => {
@@ -171,7 +173,7 @@ const fetchGameDetails = async () => {
         if (response.data.players) {
             players.value = response.data.players
             totalPlayers.value = response.data.players.length
-            
+
             // Update leaderboard from players list if empty
             if (leaderboard.value.length === 0) {
                 leaderboard.value = players.value.sort((a, b) => b.score - a.score)
@@ -182,7 +184,7 @@ const fetchGameDetails = async () => {
             teams.value = response.data.teams
             updateMyTeamName()
         }
-        
+
         quizIdRef.value = response.data.quizId
 
         // Only set index if game is in progress, otherwise keep -1 for Lobby
@@ -327,7 +329,7 @@ const connectWebSocket = () => {
       stompClient.value?.subscribe(`/user/queue/achievements`, (message) => {
         const achievement = JSON.parse(message.body)
         achievements.value.push(achievement)
-        
+
         // SAVE TO LOCAL STORAGE FOR SYNC
         const recentlyUnlocked = JSON.parse(localStorage.getItem('recentlyUnlockedAchievements') || '[]')
         if (!recentlyUnlocked.includes(achievement.type)) {
@@ -358,7 +360,7 @@ const connectWebSocket = () => {
         roundFinished.value = true
         showLeaderboard.value = true
         showCorrectAnswer.value = false
-        
+
         try {
             await fetchGameDetails()
             if (players.value.length > 0) {
@@ -493,7 +495,7 @@ onMounted(async () => {
   }
   await fetchGameDetails()
   connectWebSocket()
-  
+
   // Initial progress fetch for host
   if (isHost.value) {
       fetchProgress()
@@ -555,9 +557,9 @@ onUnmounted(() => {
       <div v-if="gameFinished" class="text-center animate-fade-in w-full max-w-5xl">
           <div class="mb-8">
               <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-4 animate-pulse">
-                  PARTIE TERMINÉE !
+                  {{ t('game.gameOver') }}
               </h1>
-              <p class="text-2xl text-gray-300">Merci d'avoir joué !</p>
+              <p class="text-2xl text-gray-300">{{ t('game.thankYou') }}</p>
           </div>
 
           <!-- Podium -->
@@ -613,20 +615,20 @@ onUnmounted(() => {
               <!-- Host Actions -->
               <template v-if="isHost">
                   <button @click="returnToQuiz" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold text-xl hover:bg-indigo-700 transition shadow-lg flex items-center">
-                      <span class="mr-2">🔙</span> Retour au Quiz
+                      <span class="mr-2">🔙</span> {{ t('game.backToQuiz') }}
                   </button>
                   <button @click="returnToHome" class="bg-white/10 text-white px-6 py-3 rounded-full font-bold text-lg hover:bg-white/20 transition shadow-lg">
-                      Accueil
+                      {{ t('game.home') }}
                   </button>
               </template>
 
               <!-- Player Actions -->
               <template v-else>
                   <button @click="goToAchievements" class="bg-yellow-500 text-yellow-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-yellow-400 transition shadow-lg flex items-center">
-                      <span class="mr-2">🏆</span> Voir mes Succès
+                      <span class="mr-2">🏆</span> {{ t('game.viewAchievements') }}
                   </button>
                   <button @click="returnToHome" class="bg-white text-indigo-900 px-8 py-3 rounded-full font-bold text-xl hover:bg-gray-100 transition shadow-lg flex items-center">
-                      <span class="mr-2">🏠</span> Quitter
+                      <span class="mr-2">🏠</span> {{ t('game.quit') }}
                   </button>
               </template>
           </div>
@@ -640,7 +642,7 @@ onUnmounted(() => {
           <!-- Host Info -->
           <div v-if="isHost" class="mt-4 flex justify-center space-x-8 text-gray-500">
               <div class="flex flex-col items-center">
-                  <span class="text-sm uppercase tracking-wider font-bold">Réponses</span>
+                  <span class="text-sm uppercase tracking-wider font-bold">{{ t('game.answers') }}</span>
                   <span class="text-2xl font-black text-indigo-600">{{ answeredCount }} / {{ totalPlayers }}</span>
               </div>
           </div>
@@ -680,7 +682,7 @@ onUnmounted(() => {
 
         <div v-if="pointsAwarded !== null && !showCorrectAnswer" class="mt-8 text-center animate-bounce-in">
           <div class="inline-block bg-green-500 text-white px-8 py-4 rounded-full text-3xl font-black shadow-xl border-4 border-green-300">
-            +{{ pointsAwarded }} Points!
+            +{{ pointsAwarded }} {{ t('game.points') }}
           </div>
         </div>
 
@@ -688,12 +690,12 @@ onUnmounted(() => {
 
         <div v-if="isHost || roundFinished" class="mt-8 text-center flex justify-center space-x-4">
             <button v-if="roundFinished" @click="toggleView" class="bg-indigo-600 text-white px-8 py-4 rounded-full hover:bg-indigo-500 transition font-bold shadow-lg text-xl">
-                {{ showLeaderboard ? 'Voir Réponse' : 'Voir Classement' }}
+                {{ showLeaderboard ? t('game.viewAnswer') : t('game.viewLeaderboard') }}
             </button>
 
             <button v-if="isHost" @click="nextQuestion"
                   class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-12 py-4 rounded-full font-bold text-2xl hover:from-green-600 hover:to-emerald-700 transition transform hover:scale-105 shadow-xl ring-4 ring-white/20">
-            {{ roundFinished ? (isLastQuestion ? 'Terminer la Partie 🏁' : 'Question Suivante ➡️') : 'Afficher les Résultats 📊' }}
+            {{ roundFinished ? (isLastQuestion ? t('game.finishGame') + ' 🏁' : t('game.nextQuestion') + ' ➡️') : t('game.showResults') + ' 📊' }}
           </button>
         </div>
       </div>
@@ -705,7 +707,7 @@ onUnmounted(() => {
             <!-- Player Leaderboard -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden border border-white/10">
                 <div class="bg-indigo-600 p-4 text-center">
-                    <h2 class="text-2xl font-bold text-white uppercase tracking-wider">🏆 Classement Joueurs</h2>
+                    <h2 class="text-2xl font-bold text-white uppercase tracking-wider">🏆 {{ t('game.playerLeaderboard') }}</h2>
                 </div>
                 <div class="divide-y divide-white/10">
                   <div v-for="(player, index) in leaderboard" :key="index"
@@ -717,7 +719,7 @@ onUnmounted(() => {
                           {{ index + 1 }}
                       </div>
                       <div class="flex flex-col">
-                          <span class="text-xl font-semibold truncate max-w-[150px]">{{ player.nickname }} <span v-if="player.userId === currentUserId" class="text-xs bg-indigo-500 px-2 py-0.5 rounded ml-2">Moi</span></span>
+                          <span class="text-xl font-semibold truncate max-w-[150px]">{{ player.nickname }} <span v-if="player.userId === currentUserId" class="text-xs bg-indigo-500 px-2 py-0.5 rounded ml-2">{{ t('game.me') }}</span></span>
                           <span v-if="teams.length > 0" class="text-xs text-gray-400 uppercase tracking-wider font-bold">
                               {{ player.teamName || getPlayerTeamName(player.userId) }}
                           </span>
@@ -736,7 +738,7 @@ onUnmounted(() => {
             <!-- Team Leaderboard (if active) -->
             <div v-if="teams.length > 0" class="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl overflow-hidden border border-white/10">
                 <div class="bg-purple-600 p-4 text-center">
-                    <h2 class="text-2xl font-bold text-white uppercase tracking-wider">⚔️ Classement Équipes</h2>
+                    <h2 class="text-2xl font-bold text-white uppercase tracking-wider">⚔️ {{ t('game.teamLeaderboard') }}</h2>
                 </div>
                 <div class="divide-y divide-white/10">
                   <div v-for="(team, index) in teams.sort((a,b) => b.score - a.score)" :key="team.id"
@@ -753,26 +755,26 @@ onUnmounted(() => {
 
         <div class="flex justify-center space-x-6 mt-4">
              <button @click="toggleView" class="bg-indigo-600 text-white px-8 py-4 rounded-full hover:bg-indigo-500 transition font-bold shadow-lg text-xl">
-                Voir Réponse
+                {{ t('game.viewAnswer') }}
             </button>
 
             <button v-if="isHost" @click="nextQuestion"
                   class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-12 py-4 rounded-full font-bold text-2xl hover:from-green-600 hover:to-emerald-700 transition transform hover:scale-105 shadow-xl ring-4 ring-white/20">
-            {{ isLastQuestion ? 'Terminer la Partie 🏁' : 'Question Suivante ➡️' }}
+            {{ isLastQuestion ? t('game.finishGame') + ' 🏁' : t('game.nextQuestion') + ' ➡️' }}
           </button>
         </div>
         <div class="mt-8 text-center" v-if="!isHost">
             <div class="inline-block animate-bounce bg-white/20 px-6 py-3 rounded-full text-lg font-medium">
-                ⏳ En attente de l'hôte...
+                ⏳ {{ t('game.waitingForHost') }}
             </div>
         </div>
       </div>
 
       <div v-if="!currentQuestion && !showLeaderboard && !gameFinished" class="text-center">
         <div class="text-6xl mb-4 animate-spin-slow">🎲</div>
-        <h2 class="text-3xl font-bold text-white/80">Préparez-vous...</h2>
+        <h2 class="text-3xl font-bold text-white/80">{{ t('game.getReady') }}</h2>
         <div v-if="myTeamName" class="mt-4 text-xl text-purple-300 font-bold animate-pulse">
-            Vous êtes dans l'équipe : {{ myTeamName }}
+            {{ t('game.yourTeam', { team: myTeamName }) }}
         </div>
       </div>
 

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const quizId = route.params.id as string
 
 interface Question {
@@ -49,7 +51,7 @@ const fetchQuiz = async () => {
     })
     quiz.value = response.data
   } catch (error) {
-    console.error('Erreur lors de la récupération du quiz:', error)
+    console.error('Error fetching quiz:', error)
   }
 }
 
@@ -63,7 +65,7 @@ const fetchAvailableQuestions = async () => {
     const currentQuestionIds = new Set(quiz.value?.questions.map(q => q.id) || [])
     availableQuestions.value = response.data.filter((q: Question) => !currentQuestionIds.has(q.id))
   } catch (error) {
-    console.error('Erreur lors de la récupération des questions:', error)
+    console.error('Error fetching questions:', error)
   }
 }
 
@@ -82,15 +84,15 @@ const addQuestionsToQuiz = async () => {
     selectedQuestionIds.value = []
     await fetchQuiz()
     await fetchAvailableQuestions()
-    alert('Questions ajoutées avec succès !')
+    alert(t('quizDetail.questionsAdded'))
   } catch (error) {
-    console.error('Erreur lors de l\'ajout des questions:', error)
-    alert('Échec de l\'ajout des questions')
+    console.error('Error adding questions:', error)
+    alert(t('quizDetail.addError'))
   }
 }
 
 const removeQuestionFromQuiz = async (questionId: string) => {
-  if (!confirm('Voulez-vous vraiment retirer cette question du quiz ?')) return
+  if (!confirm(t('quizDetail.confirmRemove'))) return
 
   try {
     const token = localStorage.getItem('token')
@@ -100,8 +102,8 @@ const removeQuestionFromQuiz = async (questionId: string) => {
     await fetchQuiz()
     await fetchAvailableQuestions()
   } catch (error) {
-    console.error('Erreur lors du retrait de la question:', error)
-    alert('Échec du retrait de la question')
+    console.error('Error removing question:', error)
+    alert(t('quizDetail.removeError'))
   }
 }
 
@@ -117,7 +119,7 @@ const createAndAddQuestion = async () => {
     }
 
     if (questionPayload.options.length < 2) {
-        alert("Veuillez ajouter au moins 2 options.")
+        alert(t('quizDetail.minOptions'))
         return
     }
 
@@ -144,11 +146,11 @@ const createAndAddQuestion = async () => {
     showCreateQuestionModal.value = false
     await fetchQuiz()
     await fetchAvailableQuestions()
-    alert('Question créée et ajoutée !')
+    alert(t('quizDetail.questionCreatedAndAdded'))
 
   } catch (error) {
-    console.error('Erreur lors de la création de la question:', error)
-    alert('Erreur lors de la création.')
+    console.error('Error creating question:', error)
+    alert(t('quizDetail.createError'))
   }
 }
 
@@ -180,8 +182,8 @@ const createGameSession = async () => {
     // Redirect to lobby
     router.push(`/lobby/${response.data.pin}`)
   } catch (error) {
-    console.error('Erreur lors de la création de la session de jeu:', error)
-    alert('Échec de la création de la session de jeu')
+    console.error('Error creating game session:', error)
+    alert(t('quizDetail.gameSessionError'))
   }
 }
 
@@ -208,13 +210,13 @@ onMounted(async () => {
                       @click="showSettings = !showSettings"
                       class="inline-flex items-center px-5 py-2.5 border border-white/30 text-sm font-bold rounded-lg text-white bg-white/10 hover:bg-white/20 focus:outline-none transition backdrop-blur-sm"
                       >
-                      ⚙️ Paramètres
+                      {{ t('quizDetail.settings') }}
                       </button>
                       <button
                       @click="createGameSession"
                       class="inline-flex items-center px-6 py-2.5 border border-transparent text-sm font-bold rounded-lg text-indigo-700 bg-white hover:bg-indigo-50 focus:outline-none shadow-lg transform hover:scale-105 transition"
                       >
-                      🚀 Lancer le Live
+                      {{ t('quizDetail.launchLive') }}
                       </button>
                   </div>
               </div>
@@ -222,20 +224,20 @@ onMounted(async () => {
               <!-- Settings Panel -->
               <div v-if="showSettings" class="bg-gray-50 px-6 py-6 border-b border-gray-200 animate-fade-in">
                   <h4 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
-                      <span class="bg-indigo-100 text-indigo-600 p-1 rounded mr-2">🛠️</span> Configuration de la Partie
+                      <span class="bg-indigo-100 text-indigo-600 p-1 rounded mr-2"></span> {{ t('quizDetail.gameConfig') }}
                   </h4>
                   <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-6">
                       <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                          <label class="block text-sm font-medium text-gray-700 mb-1">Score de Base</label>
+                          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('quizDetail.baseScore') }}</label>
                           <input v-model.number="scoringSettings.baseScore" type="number" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
                       </div>
                       <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                          <label class="block text-sm font-medium text-gray-700 mb-1">Poids du Temps (0-1)</label>
+                          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('quizDetail.timeWeight') }}</label>
                           <input v-model.number="scoringSettings.timeWeight" type="number" step="0.1" min="0" max="1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
-                          <p class="text-xs text-gray-500 mt-1">1 = La vitesse est cruciale</p>
+                          <p class="text-xs text-gray-500 mt-1">{{ t('quizDetail.timeWeightHint') }}</p>
                       </div>
                       <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                          <label class="block text-sm font-medium text-gray-700 mb-1">Multiplicateur Streak</label>
+                          <label class="block text-sm font-medium text-gray-700 mb-1">{{ t('quizDetail.streakMultiplier') }}</label>
                           <input v-model.number="scoringSettings.streakMultiplier" type="number" step="0.1" min="1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
                       </div>
                   </div>
@@ -243,7 +245,7 @@ onMounted(async () => {
                   <div class="flex items-center bg-purple-50 p-4 rounded-lg border border-purple-100">
                       <input id="team-mode" v-model="isTeamMode" type="checkbox" class="h-5 w-5 text-purple-600 focus:ring-purple-500 border-gray-300 rounded" />
                       <label for="team-mode" class="ml-3 block text-sm font-bold text-purple-900">
-                          Activer le Mode Équipe (Team Battle) ⚔️
+                          {{ t('quizDetail.teamMode') }}
                       </label>
                   </div>
               </div>
@@ -252,11 +254,11 @@ onMounted(async () => {
               <div class="bg-white px-6 py-4 flex items-center justify-between border-t border-gray-100">
                   <div class="flex space-x-8">
                       <div class="flex flex-col">
-                          <span class="text-xs font-medium text-gray-500 uppercase">Questions</span>
+                          <span class="text-xs font-medium text-gray-500 uppercase">{{ t('quizDetail.questions') }}</span>
                           <span class="text-2xl font-bold text-gray-900">{{ quiz.questions.length }}</span>
                       </div>
                       <div class="flex flex-col">
-                          <span class="text-xs font-medium text-gray-500 uppercase">Difficulté Moy.</span>
+                          <span class="text-xs font-medium text-gray-500 uppercase">{{ t('quizDetail.avgDifficulty') }}</span>
                           <span class="text-2xl font-bold text-gray-900">
                               {{ quiz.questions.length > 0 ? (quiz.questions.reduce((acc, q) => acc + q.difficultyLevel, 0) / quiz.questions.length).toFixed(1) : '-' }}
                           </span>
@@ -269,8 +271,8 @@ onMounted(async () => {
               <!-- Questions List -->
               <div class="lg:col-span-2 space-y-6">
                   <h3 class="text-xl font-bold text-gray-900 flex items-center">
-                      <span class="bg-green-100 text-green-600 p-1.5 rounded-lg mr-2 text-sm">📋</span>
-                      Questions du Quiz
+                      <span class="bg-green-100 text-green-600 p-1.5 rounded-lg mr-2 text-sm"></span>
+                      {{ t('quizDetail.quizQuestions') }}
                   </h3>
                   <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
                       <ul role="list" class="divide-y divide-gray-100">
@@ -284,7 +286,7 @@ onMounted(async () => {
                                       <p class="text-lg font-medium text-gray-900">{{ question.text }}</p>
                                       <div class="mt-2 flex items-center space-x-2">
                                           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                              Niveau {{ question.difficultyLevel }}
+                                              {{ t('quizDetail.level', { level: question.difficultyLevel }) }}
                                           </span>
                                           <span v-for="tag in question.tags" :key="tag" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                               #{{ tag }}
@@ -293,12 +295,12 @@ onMounted(async () => {
                                   </div>
                               </div>
                               <button @click="removeQuestionFromQuiz(question.id)" class="text-red-500 hover:text-red-700 text-sm font-medium ml-4">
-                                  Retirer
+                                  {{ t('quizDetail.remove') }}
                               </button>
                           </div>
                       </li>
                       <li v-if="quiz.questions.length === 0" class="p-12 text-center text-gray-500 italic">
-                          Ce quiz est vide. Ajoutez des questions depuis la banque !
+                          {{ t('quizDetail.emptyQuiz') }}
                       </li>
                       </ul>
                   </div>
@@ -308,16 +310,16 @@ onMounted(async () => {
               <div class="space-y-6">
                   <h3 class="text-xl font-bold text-gray-900 flex items-center justify-between">
                       <div class="flex items-center">
-                        <span class="bg-orange-100 text-orange-600 p-1.5 rounded-lg mr-2 text-sm">🏦</span>
-                        Banque
+                        <span class="bg-orange-100 text-orange-600 p-1.5 rounded-lg mr-2 text-sm"></span>
+                        {{ t('quizDetail.bank') }}
                       </div>
                       <button @click="showCreateQuestionModal = true" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full hover:bg-indigo-200 transition">
-                          + Créer
+                          + {{ t('quizDetail.create') }}
                       </button>
                   </h3>
                   <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100 flex flex-col h-[600px]">
                       <div class="p-4 border-b border-gray-100 bg-gray-50">
-                          <p class="text-sm text-gray-500">Sélectionnez des questions à ajouter.</p>
+                          <p class="text-sm text-gray-500">{{ t('quizDetail.selectQuestions') }}</p>
                       </div>
 
                       <div class="flex-1 overflow-y-auto p-4 space-y-3">
@@ -337,12 +339,12 @@ onMounted(async () => {
                                   </div>
                                   <div class="ml-3 text-sm">
                                       <label :for="question.id" class="font-medium text-gray-900 cursor-pointer">{{ question.text }}</label>
-                                      <p class="text-gray-500 text-xs mt-1">Tags: {{ question.tags ? question.tags.join(', ') : '-' }}</p>
+                                      <p class="text-gray-500 text-xs mt-1">{{ t('questionBank.tags') }}: {{ question.tags ? question.tags.join(', ') : '-' }}</p>
                                   </div>
                               </div>
                           </div>
                           <div v-else class="text-center text-gray-500 py-8">
-                              Aucune question disponible.
+                              {{ t('quizDetail.noAvailable') }}
                           </div>
                       </div>
 
@@ -352,7 +354,7 @@ onMounted(async () => {
                           :disabled="selectedQuestionIds.length === 0"
                           class="w-full inline-flex justify-center py-3 px-4 border border-transparent shadow-sm text-sm font-bold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none disabled:bg-gray-300 disabled:cursor-not-allowed transition"
                           >
-                          Ajouter ({{ selectedQuestionIds.length }})
+                          {{ t('quizDetail.add', { count: selectedQuestionIds.length }) }}
                           </button>
                       </div>
                   </div>
@@ -367,34 +369,34 @@ onMounted(async () => {
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
                 <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">Créer une nouvelle question</h3>
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4" id="modal-title">{{ t('quizDetail.createNewQuestion') }}</h3>
                     <form @submit.prevent="createAndAddQuestion" class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Énoncé</label>
+                            <label class="block text-sm font-medium text-gray-700">{{ t('quizDetail.statement') }}</label>
                             <input v-model="newQuestion.text" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
                         </div>
 
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-2">Options</label>
                             <div v-for="(option, index) in newQuestion.options" :key="index" class="flex items-center mb-2">
-                                <input type="radio" :value="index" v-model="newQuestion.correctAnswerIndex" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 mr-2" title="Marquer comme bonne réponse" />
-                                <input v-model="newQuestion.options[index]" type="text" required class="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" :placeholder="`Option ${index + 1}`" />
+                                <input type="radio" :value="index" v-model="newQuestion.correctAnswerIndex" class="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 mr-2" :title="t('questionBank.markCorrect')" />
+                                <input v-model="newQuestion.options[index]" type="text" required class="flex-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" :placeholder="t('questionBank.optionPlaceholder', { n: index + 1 })" />
                                 <button type="button" @click="removeOption(index)" class="ml-2 text-red-500 hover:text-red-700" v-if="newQuestion.options.length > 2">
                                     &times;
                                 </button>
                             </div>
                             <button type="button" @click="addOption" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
-                                + Ajouter une option
+                                + {{ t('quizDetail.addOption') }}
                             </button>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Tags</label>
-                                <input v-model="newQuestion.tags" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" placeholder="math, algèbre" />
+                                <label class="block text-sm font-medium text-gray-700">{{ t('questionBank.tags') }}</label>
+                                <input v-model="newQuestion.tags" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" :placeholder="t('questionBank.tagsPlaceholder')" />
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Difficulté (1-5)</label>
+                                <label class="block text-sm font-medium text-gray-700">{{ t('questionBank.difficulty') }}</label>
                                 <input v-model="newQuestion.difficultyLevel" type="number" min="1" max="5" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2" />
                             </div>
                         </div>
@@ -402,10 +404,10 @@ onMounted(async () => {
                 </div>
                 <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                     <button type="button" @click="createAndAddQuestion" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                        Créer et Ajouter
+                        {{ t('quizDetail.createAndAdd') }}
                     </button>
                     <button type="button" @click="showCreateQuestionModal = false" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-                        Annuler
+                        {{ t('quizDetail.cancelModal') }}
                     </button>
                 </div>
             </div>

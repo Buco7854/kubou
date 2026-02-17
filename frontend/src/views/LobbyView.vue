@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -48,7 +50,7 @@ const fetchGameDetails = async () => {
         }
     } catch (error) {
         console.error("Failed to fetch game details", error)
-        alert("Impossible de trouver la partie ou erreur de connexion.")
+        alert(t('lobby.gameNotFound'))
         router.push('/')
     }
 }
@@ -167,12 +169,12 @@ onUnmounted(() => {
   <div class="min-h-screen bg-gradient-to-br from-indigo-900 to-purple-800 flex flex-col items-center justify-center text-white p-4">
     <div class="text-center mb-12 animate-fade-in-down">
       <h1 class="text-7xl font-extrabold mb-4 tracking-tighter drop-shadow-lg">PIN: {{ pin }}</h1>
-      <p class="text-2xl font-light opacity-90">En attente des joueurs...</p>
+      <p class="text-2xl font-light opacity-90">{{ t('lobby.waitingForPlayers') }}</p>
     </div>
 
     <div class="w-full max-w-6xl">
         <div v-if="players.length === 0" class="text-center text-gray-400 text-xl italic animate-pulse">
-            La salle est vide... pour l'instant.
+            {{ t('lobby.emptyRoom') }}
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           <div v-for="player in players" :key="player.id"
@@ -186,12 +188,12 @@ onUnmounted(() => {
     <div class="mt-16" v-if="isHost">
        <button @click="startGame"
                class="bg-gradient-to-r from-green-400 to-blue-500 text-white px-12 py-4 rounded-full font-bold text-2xl hover:from-green-500 hover:to-blue-600 transition transform hover:scale-105 shadow-2xl ring-4 ring-white/30">
-         🚀 Lancer la Partie
+         🚀 {{ t('lobby.startGame') }}
        </button>
     </div>
 
     <div class="fixed bottom-8 right-8 bg-black/50 backdrop-blur px-6 py-3 rounded-full text-sm font-mono border border-white/10">
-      {{ players.length }} joueur(s) connecté(s)
+      {{ t('lobby.playersConnected', { count: players.length }) }}
     </div>
   </div>
 </template>
