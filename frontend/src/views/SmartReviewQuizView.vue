@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useSmartReviewStore } from '../stores/smartReview'
 
+const { t } = useI18n()
 const router = useRouter()
 const smartReviewStore = useSmartReviewStore()
 const quiz = computed(() => smartReviewStore.getSmartReviewQuiz)
@@ -40,7 +42,7 @@ const nextQuestion = () => {
     currentQuestionIndex.value++
   } else {
     // Finish quiz
-    alert(`Quiz terminé ! Score : ${score.value} / ${quiz.value?.questions.length}`)
+    alert(t('smartReview.quizFinished', { score: score.value, total: quiz.value?.questions.length }))
     router.push('/')
   }
 }
@@ -93,19 +95,19 @@ onMounted(() => {
           :disabled="selectedAnswerIndex === null"
           class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
-          Valider
+          {{ t('smartReview.validate') }}
         </button>
         <button
           v-else
           @click="nextQuestion"
           class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition"
         >
-          {{ isLastQuestion ? 'Terminer' : 'Question Suivante' }}
+          {{ isLastQuestion ? t('smartReview.finish') : t('smartReview.nextQuestion') }}
         </button>
       </div>
 
       <div v-if="showResult" class="mt-4 p-4 rounded-lg text-center font-bold" :class="isCorrect ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
-        {{ isCorrect ? 'Correct ! 🎉' : 'Incorrect 😔' }}
+        {{ isCorrect ? t('smartReview.correct') : t('smartReview.incorrect') }}
       </div>
     </div>
   </div>

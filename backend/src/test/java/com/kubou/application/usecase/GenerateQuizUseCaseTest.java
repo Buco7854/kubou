@@ -3,7 +3,9 @@ package com.kubou.application.usecase;
 import com.kubou.application.repository.QuestionRepository;
 import com.kubou.application.repository.QuizRepository;
 import com.kubou.application.service.QuestionProvider;
+import com.kubou.application.service.QuestionProviderFactory;
 import com.kubou.application.service.QuestionProviderRequest;
+import com.kubou.application.service.QuestionTranslationService;
 import com.kubou.domain.entity.Question;
 import com.kubou.domain.entity.Quiz;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +37,9 @@ class GenerateQuizUseCaseTest {
     @Mock
     private QuestionProvider mockProvider;
 
+    @Mock
+    private QuestionTranslationService translationService;
+
     @Captor
     private ArgumentCaptor<List<Question>> questionsCaptor;
 
@@ -44,8 +49,9 @@ class GenerateQuizUseCaseTest {
     @BeforeEach
     void setUp() {
         when(mockProvider.getSourceIdentifier()).thenReturn("test-source");
+        QuestionProviderFactory factory = new QuestionProviderFactory(List.of(mockProvider));
         generateQuizUseCase = new GenerateQuizUseCase(
-                questionRepository, quizRepository, List.of(mockProvider));
+                questionRepository, quizRepository, factory, translationService);
     }
 
     @Test

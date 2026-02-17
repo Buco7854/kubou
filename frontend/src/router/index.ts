@@ -9,6 +9,7 @@ import GameView from '../views/GameView.vue'
 import QuizListView from '../views/QuizListView.vue'
 import SmartReviewQuizView from '../views/SmartReviewQuizView.vue'
 import AchievementsView from '../views/AchievementsView.vue'
+import ImportQuizView from '../views/ImportQuizView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +33,11 @@ const router = createRouter({
       path: '/create-quiz',
       name: 'create-quiz',
       component: CreateQuizView
+    },
+    {
+      path: '/import-quiz',
+      name: 'import-quiz',
+      component: ImportQuizView
     },
     {
       path: '/questions',

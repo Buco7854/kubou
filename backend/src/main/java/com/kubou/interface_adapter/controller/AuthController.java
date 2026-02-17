@@ -47,8 +47,14 @@ public class AuthController {
                 )
         );
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = tokenProvider.generateToken(authentication);
-        return ResponseEntity.ok(Map.of("token", jwt));
+
+        AppUser user = userRepository.findByUsername(loginRequest.getUsername())
+                .orElseThrow();
+        String jwt = tokenProvider.generateTokenWithClaims(
+                user.getUsername(),
+                Map.of("language", user.getLanguage())
+        );
+        return ResponseEntity.ok(Map.of("token", jwt, "language", user.getLanguage()));
     }
 
     @PostMapping("/register")
@@ -62,11 +68,13 @@ public class AuthController {
         boolean isFirstUser = userRepository.count() == 0;
         Set<String> roles = isFirstUser ? Set.of("USER", "ADMIN") : Set.of("USER");
 
+        String language = registerRequest.getLanguage() != null ? registerRequest.getLanguage() : "fr";
         AppUser newUser = new AppUser(
                 UUID.randomUUID().toString(),
                 registerRequest.getUsername(),
                 passwordEncoder.encode(registerRequest.getPassword()),
-                roles
+                roles,
+                language
         );
 
         userRepository.save(newUser);
@@ -100,10 +108,13 @@ public class AuthController {
     public static class RegisterRequest {
         private String username;
         private String password;
+        private String language;
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
         public String getPassword() { return password; }
         public void setPassword(String password) { this.password = password; }
+        public String getLanguage() { return language; }
+        public void setLanguage(String language) { this.language = language; }
     }
 
     public static class GuestLoginRequest {

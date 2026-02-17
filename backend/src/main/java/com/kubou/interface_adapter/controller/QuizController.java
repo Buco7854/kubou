@@ -2,8 +2,11 @@ package com.kubou.interface_adapter.controller;
 
 import com.kubou.application.repository.QuestionRepository;
 import com.kubou.application.repository.QuizRepository;
+import com.kubou.application.service.QuestionProviderRequest;
+import com.kubou.application.usecase.GenerateQuizUseCase;
 import com.kubou.domain.entity.Question;
 import com.kubou.domain.entity.Quiz;
+import com.kubou.interface_adapter.controller.dto.ImportQuizRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.http.ResponseEntity;
@@ -22,10 +25,13 @@ public class QuizController {
 
     private final QuizRepository quizRepository;
     private final QuestionRepository questionRepository;
+    private final GenerateQuizUseCase generateQuizUseCase;
 
-    public QuizController(QuizRepository quizRepository, QuestionRepository questionRepository) {
+    public QuizController(QuizRepository quizRepository, QuestionRepository questionRepository,
+                          GenerateQuizUseCase generateQuizUseCase) {
         this.quizRepository = quizRepository;
         this.questionRepository = questionRepository;
+        this.generateQuizUseCase = generateQuizUseCase;
     }
 
     @PostMapping
@@ -108,6 +114,24 @@ public class QuizController {
         quiz.setQuestions(updatedQuestions);
         quizRepository.save(quiz);
 
+        return ResponseEntity.ok(quiz);
+    }
+
+    @PostMapping("/import")
+    @Operation(summary = "Import a quiz from an external question provider")
+    public ResponseEntity<Quiz> importQuiz(@RequestBody ImportQuizRequest request, Principal principal) {
+        String creatorId = principal.getName();
+        QuestionProviderRequest providerRequest = new QuestionProviderRequest(
+                request.getTags(),
+                request.getAmount(),
+                request.getLanguage()
+        );
+        Quiz quiz = generateQuizUseCase.execute(
+                request.getTitle(),
+                creatorId,
+                request.getSource(),
+                providerRequest
+        );
         return ResponseEntity.ok(quiz);
     }
 

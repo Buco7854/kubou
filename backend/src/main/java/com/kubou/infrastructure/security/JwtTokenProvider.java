@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 public class JwtTokenProvider {
@@ -46,6 +47,18 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    public String generateTokenWithClaims(String subject, Map<String, Object> claims) {
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
+
+        var builder = Jwts.builder()
+                .setSubject(subject)
+                .setIssuedAt(now)
+                .setExpiration(expiryDate);
+        claims.forEach(builder::claim);
+        return builder.signWith(getSigningKey(), SignatureAlgorithm.HS512).compact();
+    }
+
     public String generateTokenWithNickname(String subject, String nickname) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpirationInMs);
@@ -73,6 +86,11 @@ public class JwtTokenProvider {
     
     public String getNicknameFromJWT(String token) {
         return getAllClaimsFromToken(token).get("nickname", String.class);
+    }
+
+    public String getLanguageFromJWT(String token) {
+        String lang = getAllClaimsFromToken(token).get("language", String.class);
+        return lang != null ? lang : "fr";
     }
 
     public boolean validateToken(String authToken) {

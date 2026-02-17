@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const achievements = ref<any[]>([])
@@ -11,44 +13,43 @@ const isGuest = ref(false)
 const guestMessage = ref('')
 
 // Metadata for display mapping - ONLY ACTIVE BADGES
-const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string }> = {
-    'SNIPER': { 
-        label: 'Sniper', 
-        description: '5 bonnes réponses d\'affilée', 
-        icon: '🎯',
-        color: 'border-red-500'
-    },
-    'FLASH': { 
-        label: 'Flash', 
-        description: 'Réponse correcte en moins de 1 seconde', 
-        icon: '⚡',
-        color: 'border-yellow-400'
-    },
-    'TURBO': { 
-        label: 'Turbo', 
-        description: '3 réponses rapides (< 5s) d\'affilée', 
-        icon: '🚀',
-        color: 'border-orange-500'
-    },
-    'LUCKY': { 
-        label: 'Chanceux', 
-        description: 'Bonne réponse sur une question difficile', 
-        icon: '🍀',
-        color: 'border-green-500'
-    }
-}
-
 const getMetadata = (type: string) => {
-    return achievementMetadata[type] || { 
-        label: type, 
-        description: 'Succès débloqué', 
+    const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string }> = {
+        'SNIPER': {
+            label: t('achievements.sniper.label'),
+            description: t('achievements.sniper.description'),
+            icon: '🎯',
+            color: 'border-red-500'
+        },
+        'FLASH': {
+            label: t('achievements.flash.label'),
+            description: t('achievements.flash.description'),
+            icon: '⚡',
+            color: 'border-yellow-400'
+        },
+        'TURBO': {
+            label: t('achievements.turbo.label'),
+            description: t('achievements.turbo.description'),
+            icon: '🚀',
+            color: 'border-orange-500'
+        },
+        'LUCKY': {
+            label: t('achievements.lucky.label'),
+            description: t('achievements.lucky.description'),
+            icon: '🍀',
+            color: 'border-green-500'
+        }
+    }
+    return achievementMetadata[type] || {
+        label: type,
+        description: t('achievements.defaultDescription'),
         icon: '🏆',
         color: 'border-gray-200'
     }
 }
 
 const formatDate = (dateInput: any) => {
-    if (!dateInput) return 'Date inconnue'
+    if (!dateInput) return t('achievements.unknownDate')
     if (Array.isArray(dateInput)) {
         const date = new Date(dateInput[0], dateInput[1] - 1, dateInput[2], dateInput[3] || 0, dateInput[4] || 0)
         return date.toLocaleDateString()
@@ -62,30 +63,30 @@ const fetchAchievements = async () => {
         const response = await axios.get('/api/v1/achievements/status', {
             headers: { Authorization: `Bearer ${token}` }
         })
-        
+
         isGuest.value = response.data.guest
         guestMessage.value = response.data.message
         achievements.value = response.data.achievements
 
         // Check local storage for recently unlocked achievements during game
         const recentlyUnlocked = JSON.parse(localStorage.getItem('recentlyUnlockedAchievements') || '[]')
-        
+
         if (recentlyUnlocked.length > 0) {
             // Merge server data with local unlocks
             achievements.value = achievements.value.map(ach => {
                 // If achievement is in local storage list AND not yet unlocked on server side (or just to be sure)
                 if (recentlyUnlocked.includes(ach.type) && !ach.unlocked) {
-                    return { 
-                        ...ach, 
-                        unlocked: true, 
+                    return {
+                        ...ach,
+                        unlocked: true,
                         unlockedAt: new Date() // Use current date as fallback
                     }
                 }
                 return ach
             })
-            
+
             // Optional: Clear local storage after syncing, or keep it for a session
-            // localStorage.removeItem('recentlyUnlockedAchievements') 
+            // localStorage.removeItem('recentlyUnlockedAchievements')
         }
 
     } catch (error) {
@@ -105,7 +106,7 @@ onMounted(() => {
 
 <template>
   <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Mes Succès</h1>
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">{{ t('achievements.title') }}</h1>
 
     <!-- Guest Warning -->
     <div v-if="isGuest" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-8 rounded-r-lg shadow-sm">
@@ -119,7 +120,7 @@ onMounted(() => {
                 </p>
                 <div class="mt-4">
                     <button @click="goToLogin" class="text-sm font-medium text-yellow-700 hover:text-yellow-600 underline">
-                        Créer un compte ou se connecter
+                        {{ t('achievements.createAccountOrLogin') }}
                     </button>
                 </div>
             </div>
@@ -128,7 +129,7 @@ onMounted(() => {
 
     <!-- Achievements Grid -->
     <div v-if="achievements.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div v-for="achievement in achievements" :key="achievement.type" 
+        <div v-for="achievement in achievements" :key="achievement.type"
              class="bg-white overflow-hidden shadow-md rounded-lg border-l-4 transition hover:shadow-lg relative"
              :class="[
                 achievement.unlocked ? getMetadata(achievement.type).color : 'border-gray-300 bg-gray-50'
@@ -146,10 +147,10 @@ onMounted(() => {
                             {{ getMetadata(achievement.type).description }}
                         </dd>
                         <dd v-if="achievement.unlocked" class="mt-2 text-xs text-green-600 font-semibold">
-                            Obtenu le {{ formatDate(achievement.unlockedAt) }}
+                            {{ t('achievements.unlockedAt', { date: formatDate(achievement.unlockedAt) }) }}
                         </dd>
                         <dd v-else class="mt-2 text-xs text-gray-500 font-semibold flex items-center">
-                            <span class="mr-1">🔒</span> Verrouillé
+                            <span class="mr-1">🔒</span> {{ t('achievements.locked') }}
                         </dd>
                     </div>
                 </div>

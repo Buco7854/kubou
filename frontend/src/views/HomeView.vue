@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 import { useSmartReviewStore } from '../stores/smartReview' // Import the new store
 import { Client } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const smartReviewStore = useSmartReviewStore() // Initialize the new store
@@ -17,18 +19,18 @@ const participatingSessions = ref<any[]>([])
 const recentAchievements = ref<any[]>([])
 
 // Metadata for display mapping (Duplicated from AchievementsView for now)
-const achievementMetadata: Record<string, { label: string, description: string, icon: string, color: string, bg: string }> = {
-    'SNIPER': { label: 'Sniper', description: '5 bonnes réponses d\'affilée', icon: '🎯', color: 'text-red-600', bg: 'bg-red-100' },
-    'FLASH': { label: 'Flash', description: 'Réponse < 1s', icon: '⚡', color: 'text-yellow-600', bg: 'bg-yellow-100' },
-    'MARATHON': { label: 'Marathonien', description: 'Quiz complet', icon: '🏃', color: 'text-blue-600', bg: 'bg-blue-100' },
-    'FIRST_GAME': { label: 'Première Partie', description: 'Bienvenue !', icon: '🐣', color: 'text-green-600', bg: 'bg-green-100' },
-    'WINNER': { label: 'Champion', description: 'Top 1', icon: '🥇', color: 'text-yellow-700', bg: 'bg-yellow-200' },
-    'TOP_3': { label: 'Podium', description: 'Top 3', icon: '🏅', color: 'text-gray-600', bg: 'bg-gray-200' },
-    'PERFECT': { label: 'Perfection', description: '100% Juste', icon: '💎', color: 'text-purple-600', bg: 'bg-purple-100' }
-}
+const achievementMetadata = computed<Record<string, { label: string, description: string, icon: string, color: string, bg: string }>>(() => ({
+    'SNIPER': { label: t('achievements.sniper.label'), description: t('achievements.sniper.description'), icon: '🎯', color: 'text-red-600', bg: 'bg-red-100' },
+    'FLASH': { label: t('achievements.flash.label'), description: t('achievements.flash.description'), icon: '⚡', color: 'text-yellow-600', bg: 'bg-yellow-100' },
+    'MARATHON': { label: t('achievements.marathon.label'), description: t('achievements.marathon.description'), icon: '🏃', color: 'text-blue-600', bg: 'bg-blue-100' },
+    'FIRST_GAME': { label: t('achievements.firstGame.label'), description: t('achievements.firstGame.description'), icon: '🐣', color: 'text-green-600', bg: 'bg-green-100' },
+    'WINNER': { label: t('achievements.winner.label'), description: t('achievements.winner.description'), icon: '🥇', color: 'text-yellow-700', bg: 'bg-yellow-200' },
+    'TOP_3': { label: t('achievements.top3.label'), description: t('achievements.top3.description'), icon: '🏅', color: 'text-gray-600', bg: 'bg-gray-200' },
+    'PERFECT': { label: t('achievements.perfect.label'), description: t('achievements.perfect.description'), icon: '💎', color: 'text-purple-600', bg: 'bg-purple-100' }
+}))
 
 const getMetadata = (type: string) => {
-    return achievementMetadata[type] || { label: type, description: 'Succès', icon: '🏆', color: 'text-gray-600', bg: 'bg-gray-100' }
+    return achievementMetadata.value[type] || { label: type, description: t('achievements.defaultDescription'), icon: '🏆', color: 'text-gray-600', bg: 'bg-gray-100' }
 }
 
 const joinGame = () => {
@@ -87,7 +89,7 @@ const resumeSession = (pin: string) => {
 }
 
 const closeSession = async (gameId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir fermer cette session ?")) return;
+    if (!confirm(t('home.confirmCloseSession'))) return;
     try {
         const token = authStore.token
         await axios.delete(`/api/v1/games/${gameId}`, {
@@ -96,18 +98,18 @@ const closeSession = async (gameId: string) => {
         fetchMySessions()
     } catch (error) {
         console.error("Failed to close session", error)
-        alert("Impossible de fermer la session.")
+        alert(t('home.closeSessionError'))
     }
 }
 
 const leaveSession = async (gameId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir quitter cette partie ?")) return;
+    if (!confirm(t('home.confirmLeaveSession'))) return;
     participatingSessions.value = participatingSessions.value.filter(s => s.id !== gameId);
 }
 
 const generateSmartReview = async () => {
     if (!authStore.isLoggedIn) {
-        alert("Veuillez vous connecter pour utiliser cette fonctionnalité.")
+        alert(t('home.loginRequired'))
         return
     }
     isGenerating.value = true
@@ -118,16 +120,16 @@ const generateSmartReview = async () => {
         })
 
         if (response.status === 204 || response.data.questions.length === 0) { // Check for empty questions array
-            alert("Bravo ! Vous n'avez pas assez d'erreurs pour générer un quiz de rattrapage.")
+            alert(t('home.noErrorsForReview'))
         } else {
             const quiz = response.data
             smartReviewStore.setSmartReviewQuiz(quiz) // Store the quiz in Pinia
-            alert(`Quiz de rattrapage généré : ${quiz.title}`)
+            alert(t('home.reviewGenerated', { title: quiz.title }))
             router.push(`/smart-review-quiz`) // Navigate to the new route
         }
     } catch (error) {
         console.error("Failed to generate review", error)
-        alert("Erreur lors de la génération du quiz.")
+        alert(t('home.reviewError'))
     } finally {
         isGenerating.value = false
     }
@@ -150,14 +152,14 @@ onMounted(() => {
                 Kubou
             </h1>
             <p class="text-xl md:text-2xl text-gray-600 font-light max-w-2xl mx-auto">
-                La plateforme d'apprentissage interactive où chaque réponse compte.
+                {{ t('home.tagline') }}
             </p>
         </div>
 
         <!-- Active Sessions (Host) -->
         <div v-if="activeSessions.length > 0" class="max-w-md mx-auto animate-fade-in-down">
             <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-indigo-200 shadow-lg">
-                <h3 class="text-lg font-bold text-indigo-900 mb-3">🔴 Vos sessions (Host)</h3>
+                <h3 class="text-lg font-bold text-indigo-900 mb-3">🔴 {{ t('home.hostSessions') }}</h3>
                 <div class="space-y-2">
                     <div v-for="session in activeSessions" :key="session.id"
                          class="flex justify-between items-center p-3 bg-white rounded-lg border border-indigo-100 hover:border-indigo-300 transition shadow-sm hover:shadow-md">
@@ -167,10 +169,10 @@ onMounted(() => {
                         </div>
                         <div class="flex space-x-2">
                             <button @click="resumeSession(session.pin)" class="text-sm bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-medium hover:bg-indigo-200">
-                                Reprendre
+                                {{ t('home.resume') }}
                             </button>
                             <button @click="closeSession(session.id)" class="text-sm bg-red-100 text-red-700 px-3 py-1 rounded-full font-medium hover:bg-red-200">
-                                Fermer
+                                {{ t('home.close') }}
                             </button>
                         </div>
                     </div>
@@ -181,20 +183,20 @@ onMounted(() => {
         <!-- Participating Sessions (Player) -->
         <div v-if="participatingSessions.length > 0" class="max-w-md mx-auto animate-fade-in-down">
             <div class="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-green-200 shadow-lg">
-                <h3 class="text-lg font-bold text-green-900 mb-3">🟢 En cours (Joueur)</h3>
+                <h3 class="text-lg font-bold text-green-900 mb-3">🟢 {{ t('home.playerSessions') }}</h3>
                 <div class="space-y-2">
                     <div v-for="session in participatingSessions" :key="session.id"
                          class="flex justify-between items-center p-3 bg-white rounded-lg border border-green-100 hover:border-green-300 transition shadow-sm hover:shadow-md">
                         <div class="text-left cursor-pointer flex-grow" @click="resumeSession(session.pin)">
                             <span class="block font-mono text-xl font-bold text-green-600 tracking-widest">{{ session.pin }}</span>
-                            <span class="text-xs text-gray-500">Participant</span>
+                            <span class="text-xs text-gray-500">{{ t('home.participant') }}</span>
                         </div>
                         <div class="flex space-x-2">
                             <button @click="resumeSession(session.pin)" class="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium hover:bg-green-200">
-                                Rejoindre
+                                {{ t('home.join') }}
                             </button>
                             <button @click="leaveSession(session.id)" class="text-sm bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium hover:bg-gray-200">
-                                Quitter
+                                {{ t('home.leave') }}
                             </button>
                         </div>
                     </div>
@@ -206,11 +208,11 @@ onMounted(() => {
         <div class="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-2xl transform transition hover:scale-[1.02] duration-300 border border-gray-100">
             <form @submit.prevent="joinGame" class="flex flex-col space-y-6">
                 <div>
-                    <label class="block text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">Rejoindre une partie</label>
+                    <label class="block text-sm font-bold text-gray-500 mb-2 uppercase tracking-wide">{{ t('home.joinGame') }}</label>
                     <input
                     v-model="gamePin"
                     type="text"
-                    placeholder="PIN DU JEU"
+                    :placeholder="t('home.gamePin')"
                     class="w-full text-center text-3xl font-mono tracking-[0.5em] p-4 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 focus:outline-none transition-all uppercase placeholder-gray-300"
                     maxlength="6"
                     />
@@ -219,7 +221,7 @@ onMounted(() => {
                 type="submit"
                 class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl text-lg hover:bg-indigo-700 transition shadow-lg hover:shadow-xl transform active:scale-95"
                 >
-                Entrer dans l'arène
+                {{ t('home.enterArena') }}
                 </button>
             </form>
         </div>
@@ -228,14 +230,14 @@ onMounted(() => {
         <div v-if="recentAchievements.length > 0" class="max-w-2xl mx-auto animate-fade-in-down">
             <div class="flex items-center justify-between mb-4 px-2">
                 <h3 class="text-lg font-bold text-gray-800 flex items-center">
-                    <span class="mr-2">🏆</span> Vos derniers succès
+                    <span class="mr-2">🏆</span> {{ t('home.recentAchievements') }}
                 </h3>
                 <router-link to="/achievements" class="text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline">
-                    Voir tout
+                    {{ t('home.viewAll') }}
                 </router-link>
             </div>
             <div class="grid grid-cols-3 gap-4">
-                <div v-for="achievement in recentAchievements" :key="achievement.id" 
+                <div v-for="achievement in recentAchievements" :key="achievement.id"
                      class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center transform hover:scale-105 transition cursor-pointer"
                      @click="router.push('/achievements')">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center text-2xl mb-2" :class="getMetadata(achievement.type).bg">
@@ -251,17 +253,17 @@ onMounted(() => {
             <!-- Only show Create Quiz if logged in AND NOT a guest -->
             <router-link v-if="authStore.isLoggedIn && !authStore.isGuest" to="/create-quiz" class="group relative inline-flex items-center justify-center px-8 py-3 text-base font-medium text-white bg-green-600 rounded-full hover:bg-green-700 transition shadow-md overflow-hidden">
                 <span class="absolute w-0 h-0 transition-all duration-500 ease-out bg-white rounded-full group-hover:w-56 group-hover:h-56 opacity-10"></span>
-                <span class="relative">✨ Créer un Quiz</span>
+                <span class="relative">✨ {{ t('home.createQuiz') }}</span>
             </router-link>
 
             <router-link v-if="!authStore.isLoggedIn" to="/login" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-indigo-600 bg-white border-2 border-indigo-100 rounded-full hover:bg-indigo-50 transition shadow-sm">
-                Connexion / Inscription
+                {{ t('home.loginRegister') }}
             </router-link>
 
             <div v-else class="flex gap-4">
                 <!-- Only show My Quizzes if logged in AND NOT a guest -->
                 <router-link v-if="!authStore.isGuest" to="/quizzes" class="inline-flex items-center justify-center px-8 py-3 text-base font-medium text-indigo-600 bg-white border-2 border-indigo-100 rounded-full hover:bg-indigo-50 transition shadow-sm">
-                    📂 Mes Quiz
+                    📂 {{ t('home.myQuizzes') }}
                 </router-link>
             </div>
         </div>
@@ -270,16 +272,16 @@ onMounted(() => {
         <div v-if="authStore.isLoggedIn && !authStore.isGuest" class="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm p-6 rounded-xl border border-indigo-100 mt-8">
             <div class="flex items-center justify-between flex-col md:flex-row gap-4">
                 <div class="text-left">
-                    <h3 class="text-lg font-bold text-gray-800">🚀 Boostez vos compétences</h3>
-                    <p class="text-sm text-gray-500">Générez un quiz personnalisé basé sur vos erreurs passées.</p>
+                    <h3 class="text-lg font-bold text-gray-800">🚀 {{ t('home.boostSkills') }}</h3>
+                    <p class="text-sm text-gray-500">{{ t('home.boostDescription') }}</p>
                 </div>
                 <button
                     @click="generateSmartReview"
                     :disabled="isGenerating"
                     class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-bold rounded-lg text-white bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-md disabled:opacity-50 transition-all"
                 >
-                    <span v-if="isGenerating" class="animate-pulse">Génération...</span>
-                    <span v-else>🧠 Smart Review</span>
+                    <span v-if="isGenerating" class="animate-pulse">{{ t('home.generating') }}</span>
+                    <span v-else>🧠 {{ t('home.smartReview') }}</span>
                 </button>
             </div>
         </div>

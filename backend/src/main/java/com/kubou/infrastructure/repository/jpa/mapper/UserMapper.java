@@ -13,6 +13,7 @@ public class UserMapper {
         data.setUsername(user.getUsername());
         data.setPassword(user.getPassword());
         data.setRoles(user.getRoles());
+        data.setLanguage(user.getLanguage());
         return data;
     }
 
@@ -22,7 +23,8 @@ public class UserMapper {
             data.getId(),
             data.getUsername(),
             data.getPassword(),
-            data.getRoles()
+            data.getRoles(),
+            data.getLanguage()
         );
     }
 }
