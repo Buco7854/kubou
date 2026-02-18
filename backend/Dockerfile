@@ -6,6 +6,8 @@ WORKDIR /app
 COPY gradlew settings.gradle.kts build.gradle.kts ./
 COPY gradle/ gradle/
 
+RUN chmod +x gradlew
+
 # Download dependencies (cached layer)
 RUN ./gradlew dependencies --no-daemon -q || true
 
