@@ -6,6 +6,7 @@ import com.kubou.application.service.QuestionProviderRequest;
 import com.kubou.application.usecase.GenerateQuizUseCase;
 import com.kubou.domain.entity.Question;
 import com.kubou.domain.entity.Quiz;
+import com.kubou.interface_adapter.controller.dto.AiQuizRequest;
 import com.kubou.interface_adapter.controller.dto.ImportQuizRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -130,6 +131,25 @@ public class QuizController {
                 request.getTitle(),
                 creatorId,
                 request.getSource(),
+                providerRequest
+        );
+        return ResponseEntity.ok(quiz);
+    }
+
+    @PostMapping("/generate-ai")
+    @Operation(summary = "Generate a quiz from text using AI (OpenAI)")
+    public ResponseEntity<Quiz> generateAiQuiz(@RequestBody AiQuizRequest request, Principal principal) {
+        String creatorId = principal.getName();
+        QuestionProviderRequest providerRequest = new QuestionProviderRequest(
+                List.of(),
+                request.getAmount(),
+                request.getLanguage(),
+                request.getText()
+        );
+        Quiz quiz = generateQuizUseCase.execute(
+                request.getTitle(),
+                creatorId,
+                "openai",
                 providerRequest
         );
         return ResponseEntity.ok(quiz);

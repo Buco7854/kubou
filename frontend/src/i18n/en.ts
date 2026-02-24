@@ -7,6 +7,7 @@ export default {
     myQuizzes: 'My Quizzes',
     questionBank: 'Question Bank',
     importQuiz: 'Import a Quiz',
+    aiQuiz: 'AI Quiz',
     achievements: 'My Achievements',
     home: 'Home',
     login: 'Login',
@@ -145,6 +146,23 @@ export default {
     createError: 'Error creating the question.',
     gameSessionError: 'Failed to create the game session',
     minOptions: 'Please add at least 2 options.'
+  },
+  aiQuiz: {
+    title: 'AI Quiz Generation',
+    subtitle: 'Paste your text and let AI create quiz questions for you.',
+    quizTitle: 'Quiz Title',
+    titlePlaceholder: 'e.g. Biology Chapter 3 Quiz',
+    textContent: 'Text Content',
+    textPlaceholder: 'Paste or type the text you want to generate questions from...',
+    textHint: 'The AI will analyze this text and generate multiple-choice questions.',
+    language: 'Question language',
+    questionCount: 'Number of questions',
+    generating: 'Generating with AI...',
+    submit: 'Generate Quiz with AI',
+    titleRequired: 'Please enter a title for the quiz.',
+    textRequired: 'Please enter text content to generate questions from.',
+    amountRange: 'The number of questions must be between 1 and 20.',
+    generateError: 'Error generating quiz. Please try again.'
   },
   importQuiz: {
     title: 'Import a Quiz',
