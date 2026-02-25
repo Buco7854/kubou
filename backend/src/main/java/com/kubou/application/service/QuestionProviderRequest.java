@@ -6,6 +6,7 @@ public class QuestionProviderRequest {
     private List<String> tags;
     private int amount;
     private String language;
+    private String text;
 
     public QuestionProviderRequest() {
     }
@@ -19,6 +20,13 @@ public class QuestionProviderRequest {
         this.tags = tags;
         this.amount = amount;
         this.language = language;
+    }
+
+    public QuestionProviderRequest(List<String> tags, int amount, String language, String text) {
+        this.tags = tags;
+        this.amount = amount;
+        this.language = language;
+        this.text = text;
     }
 
     public List<String> getTags() {
@@ -43,5 +51,13 @@ public class QuestionProviderRequest {
 
     public void setLanguage(String language) {
         this.language = language;
+    }
+
+    public String getText() {
+        return text;
+    }
+
+    public void setText(String text) {
+        this.text = text;
     }
 }

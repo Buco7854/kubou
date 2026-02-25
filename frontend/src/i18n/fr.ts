@@ -7,6 +7,7 @@ export default {
     myQuizzes: 'Mes Quiz',
     questionBank: 'Banque de Questions',
     importQuiz: 'Importer un Quiz',
+    aiQuiz: 'Quiz IA',
     achievements: 'Mes Succès',
     home: 'Accueil',
     login: 'Connexion',
@@ -145,6 +146,23 @@ export default {
     createError: 'Erreur lors de la création.',
     gameSessionError: 'Échec de la création de la session de jeu',
     minOptions: 'Veuillez ajouter au moins 2 options.'
+  },
+  aiQuiz: {
+    title: 'Génération de Quiz par IA',
+    subtitle: 'Collez votre texte et laissez l\'IA créer des questions pour vous.',
+    quizTitle: 'Titre du Quiz',
+    titlePlaceholder: 'ex: Quiz Biologie Chapitre 3',
+    textContent: 'Contenu Textuel',
+    textPlaceholder: 'Collez ou saisissez le texte à partir duquel générer des questions...',
+    textHint: 'L\'IA analysera ce texte et générera des questions à choix multiples.',
+    language: 'Langue des questions',
+    questionCount: 'Nombre de questions',
+    generating: 'Génération par IA en cours...',
+    submit: 'Générer le Quiz avec l\'IA',
+    titleRequired: 'Veuillez saisir un titre pour le quiz.',
+    textRequired: 'Veuillez saisir du texte pour générer des questions.',
+    amountRange: 'Le nombre de questions doit être entre 1 et 20.',
+    generateError: 'Erreur lors de la génération. Veuillez réessayer.'
   },
   importQuiz: {
     title: 'Importer un Quiz',

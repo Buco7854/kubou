@@ -19,7 +19,7 @@ Le suivi des tâches et l'évolution du projet sont gérés via un tableau Kanba
 
 ## ✨ Fonctionnalités Clés (Core Features)
 
-Le projet s'articule autour de 6 features majeurs :
+Le projet s'articule autour de 8 features majeurs :
 
 ### 1. 🔄 Cycle de Vie & Temps Réel
 * Gestion complète des sessions de jeu (Lobby, Questions, Résultats).
@@ -48,6 +48,19 @@ Le projet s'articule autour de 6 features majeurs :
 ### 6. 🧠 Smart Review (Révision Intelligente)
 * Génération automatique de "Quiz de Rattrapage".
 * Analyse l'historique des échecs pour proposer un contenu ciblé sur les lacunes de l'élève.
+
+### 7. 📥 Import depuis des API de Quiz Externes
+* Import de questions depuis plusieurs sources externes : **Open Trivia DB** (anglais), **QuizzAPI** (français), **QuizAPI** (anglais tech/dev).
+* Sélection de la catégorie, du nombre de questions et de la langue cible.
+* Traduction automatique des questions si la langue source diffère de la langue cible.
+* Architecture extensible via le pattern *Provider Factory* permettant d'ajouter facilement de nouvelles sources.
+
+### 8. 🤖 Création de Quiz par IA (OpenAI)
+* Génération automatique de questions à choix multiples à partir d'un texte libre grâce à l'API OpenAI.
+* L'utilisateur colle un texte (cours, article, notes) et l'IA génère un quiz personnalisé.
+* Sélection de la langue des questions parmi les langues supportées par l'application.
+* Configuration flexible via variables d'environnement : `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`.
+* Compatible avec tout endpoint compatible OpenAI (OpenAI, Azure OpenAI, modèles locaux via LM Studio, etc.).
 
 ## 🏗️ Architecture Technique
 
@@ -154,6 +167,17 @@ Immédiatement après le calcul :
 * Docker & Docker Compose
 * Java 21 (optionnel si via Docker)
 * Node.js 20+ (pour le frontend local)
+
+### Variables d'Environnement
+
+| Variable | Description | Défaut |
+|---|---|---|
+| `SPRING_DATASOURCE_URL` | URL de la base PostgreSQL | `jdbc:postgresql://localhost:5432/kubou` |
+| `APP_JWT_SECRET` | Secret JWT | *(dev secret)* |
+| `QUIZAPI_KEY` | Clé API QuizAPI | - |
+| `OPENAI_API_KEY` | Clé API OpenAI (requis pour la génération IA) | - |
+| `OPENAI_BASE_URL` | URL de base de l'API OpenAI | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | Modèle OpenAI à utiliser (requis) | - |
 
 ### Lancer le projet
 
