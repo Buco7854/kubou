@@ -279,7 +279,15 @@ package "com.kubou.application.usecase" {
         - IScoringStrategy scoringStrategy
         + execute(String gameId, UserAnswer userAnswer): SubmitAnswerResult
     }
-    
+
+    class GenerateQuizUseCase {
+        - QuestionRepository questionRepository
+        - QuizRepository quizRepository
+        - QuestionProviderFactory providerFactory
+        - QuestionTranslationService translationService
+        + execute(String title, String creatorId, String source, QuestionProviderRequest request): Quiz
+    }
+
     package "dto" {
         class SubmitAnswerResult {
             - int score
@@ -314,7 +322,67 @@ package "com.kubou.application.service" {
         + checkAndUnlockAchievements(Player player, UserAnswer userAnswer, boolean isCorrect)
         + awardEndGameAchievements(GameSession session)
     }
+
+    interface QuestionProvider {
+        + fetchQuestions(QuestionProviderRequest request): List<Question>
+        + getSourceIdentifier(): String
+        + getSourceLanguage(): String
+    }
+
+    interface QuestionTranslationService {
+        + translate(List<Question> questions, String sourceLanguage, String targetLanguage): List<Question>
+    }
+
+    class QuestionProviderFactory {
+        - Map<String, QuestionProvider> providerMap
+        + getProvider(String source): QuestionProvider
+        + getAvailableSources(): Set<String>
+    }
+
+    class QuestionProviderRequest {
+        - List<String> tags
+        - int amount
+        - String language
+        - String text
+    }
+
+    class ExternalServiceException {
+        - String serviceName
+        + ExternalServiceException(String serviceName, String message)
+        + getServiceName(): String
+    }
 }
+
+package "com.kubou.infrastructure.provider" {
+    class OpenAiQuestionProvider {
+        - String apiKey
+        - String baseUrl
+        - String model
+        + fetchQuestions(QuestionProviderRequest request): List<Question>
+        + getSourceIdentifier(): String
+        + getSourceLanguage(): String
+    }
+
+    class OpenTriviaDbProvider {
+        + fetchQuestions(QuestionProviderRequest request): List<Question>
+        + getSourceIdentifier(): String
+        + getSourceLanguage(): String
+    }
+
+    class QuizApiProvider {
+        - String apiKey
+        + fetchQuestions(QuestionProviderRequest request): List<Question>
+        + getSourceIdentifier(): String
+        + getSourceLanguage(): String
+    }
+
+    class QuizzApiProvider {
+        + fetchQuestions(QuestionProviderRequest request): List<Question>
+        + getSourceIdentifier(): String
+        + getSourceLanguage(): String
+    }
+}
+
 package "com.kubou.infrastructure.repository" {
     class QuizRepositoryImpl
     class UserRepositoryImpl
@@ -406,5 +474,17 @@ PlayerAchievementJpaRepository ..> PlayerAchievementData : manages
 
 GameSessionData *-- PlayerData : contains
 GameSessionData *-- TeamData : contains
+
+GenerateQuizUseCase ..> QuestionRepository : uses
+GenerateQuizUseCase ..> QuizRepository : uses
+GenerateQuizUseCase ..> QuestionProviderFactory : uses
+GenerateQuizUseCase ..> QuestionTranslationService : uses
+
+QuestionProviderFactory ..> QuestionProvider : manages
+
+OpenAiQuestionProvider ..|> QuestionProvider
+OpenTriviaDbProvider ..|> QuestionProvider
+QuizApiProvider ..|> QuestionProvider
+QuizzApiProvider ..|> QuestionProvider
 
 @enduml
