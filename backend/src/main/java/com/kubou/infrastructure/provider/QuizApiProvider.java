@@ -6,21 +6,18 @@ import com.kubou.application.service.QuestionProviderRequest;
 import com.kubou.domain.entity.Question;
 import com.kubou.infrastructure.provider.dto.QuizApiResponse;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class QuizApiProvider implements QuestionProvider {
 
     private static final String SOURCE_ID = "quizapi";
     private static final String BASE_URL = "https://quizapi.io/api/v1/questions";
-    private static final String[] ANSWER_KEYS = {"answer_a", "answer_b", "answer_c", "answer_d", "answer_e", "answer_f"};
 
     private final RestClient restClient;
     private final String apiKey;
@@ -50,22 +47,19 @@ public class QuizApiProvider implements QuestionProvider {
                 uriBuilder.queryParam("tags", request.getTags().get(0));
             }
 
-            List<QuizApiResponse> responses = restClient.get()
+            QuizApiResponse response = restClient.get()
                     .uri(uriBuilder.toUriString())
-                    .header("X-Api-Key", apiKey)
+                    .header("Authorization", "Bearer " + apiKey)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<>() {});
+                    .body(QuizApiResponse.class);
 
-            if (responses == null) {
+            if (response == null || !response.isSuccess() || response.getData() == null) {
                 return List.of();
             }
 
             List<Question> questions = new ArrayList<>();
-            for (QuizApiResponse r : responses) {
-                if ("true".equalsIgnoreCase(r.getMultiple_correct_answers())) {
-                    continue;
-                }
-                Question q = mapToQuestion(r);
+            for (QuizApiResponse.BrowseQuestion item : response.getData()) {
+                Question q = mapToQuestion(item);
                 if (q != null) {
                     questions.add(q);
                 }
@@ -78,24 +72,21 @@ public class QuizApiProvider implements QuestionProvider {
         }
     }
 
-    private Question mapToQuestion(QuizApiResponse r) {
-        Map<String, String> answersMap = r.getAnswers();
-        Map<String, String> correctMap = r.getCorrect_answers();
-
-        if (answersMap == null || correctMap == null) {
+    private Question mapToQuestion(QuizApiResponse.BrowseQuestion item) {
+        List<QuizApiResponse.Answer> answers = item.getAnswers();
+        if (answers == null || answers.size() < 2) {
             return null;
         }
 
         List<String> options = new ArrayList<>();
         int correctIndex = -1;
 
-        for (String key : ANSWER_KEYS) {
-            String answerText = answersMap.get(key);
-            if (answerText != null && !answerText.isBlank()) {
-                if ("true".equalsIgnoreCase(correctMap.get(key + "_correct"))) {
+        for (QuizApiResponse.Answer answer : answers) {
+            if (answer.getText() != null && !answer.getText().isBlank()) {
+                if (answer.isCorrect()) {
                     correctIndex = options.size();
                 }
-                options.add(answerText);
+                options.add(answer.getText());
             }
         }
 
@@ -104,20 +95,16 @@ public class QuizApiProvider implements QuestionProvider {
         }
 
         List<String> tags = new ArrayList<>();
-        if (r.getTags() != null) {
-            for (QuizApiResponse.Tag tag : r.getTags()) {
-                if (tag.getName() != null && !tag.getName().isBlank()) {
-                    tags.add(tag.getName());
-                }
-            }
+        if (item.getTags() != null) {
+            tags.addAll(item.getTags());
         }
-        if (r.getCategory() != null && !r.getCategory().isBlank()) {
-            tags.add(r.getCategory());
+        if (item.getCategory() != null && !item.getCategory().isBlank()) {
+            tags.add(item.getCategory());
         }
 
-        int difficultyLevel = mapDifficulty(r.getDifficulty());
+        int difficultyLevel = mapDifficulty(item.getDifficulty());
 
-        return new Question(null, r.getQuestion(), options, correctIndex, tags, difficultyLevel);
+        return new Question(null, item.getText(), options, correctIndex, tags, difficultyLevel);
     }
 
     private int mapDifficulty(String difficulty) {
