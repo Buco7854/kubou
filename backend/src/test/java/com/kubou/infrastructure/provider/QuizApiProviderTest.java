@@ -9,11 +9,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,33 +43,30 @@ class QuizApiProviderTest {
     }
 
     @Test
-    void shouldMapValidSingleAnswerQuestion() {
+    void shouldMapValidQuestion() {
         // Given
+        QuizApiResponse.BrowseQuestion item = new QuizApiResponse.BrowseQuestion();
+        item.setText("What is Linux?");
+        item.setDifficulty("Easy");
+        item.setCategory("linux");
+        item.setTags(List.of("Linux"));
+
+        QuizApiResponse.Answer a1 = new QuizApiResponse.Answer();
+        a1.setText("An OS");
+        a1.setCorrect(true);
+        QuizApiResponse.Answer a2 = new QuizApiResponse.Answer();
+        a2.setText("A browser");
+        a2.setCorrect(false);
+        QuizApiResponse.Answer a3 = new QuizApiResponse.Answer();
+        a3.setText("A database");
+        a3.setCorrect(false);
+        item.setAnswers(List.of(a1, a2, a3));
+
         QuizApiResponse response = new QuizApiResponse();
-        response.setQuestion("What is Linux?");
-        response.setMultiple_correct_answers("false");
-        response.setAnswers(Map.of(
-                "answer_a", "An OS",
-                "answer_b", "A browser",
-                "answer_c", "A database"
-        ));
-        response.setCorrect_answers(Map.of(
-                "answer_a_correct", "true",
-                "answer_b_correct", "false",
-                "answer_c_correct", "false"
-        ));
-        response.setDifficulty("Easy");
-        response.setCategory("linux");
+        response.setSuccess(true);
+        response.setData(List.of(item));
 
-        QuizApiResponse.Tag tag = new QuizApiResponse.Tag();
-        tag.setName("Linux");
-        response.setTags(List.of(tag));
-
-        when(restClient.get()).thenReturn(requestHeadersUriSpec);
-        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(List.of(response));
+        mockRestClient(response);
 
         // When
         List<Question> questions = provider.fetchQuestions(new QuestionProviderRequest(List.of(), 1));
@@ -89,48 +84,46 @@ class QuizApiProviderTest {
     }
 
     @Test
-    void shouldSkipMultipleCorrectAnswerQuestions() {
+    void shouldSkipQuestionsWithNoCorrectAnswer() {
         // Given
-        QuizApiResponse multiAnswer = new QuizApiResponse();
-        multiAnswer.setQuestion("Multi answer?");
-        multiAnswer.setMultiple_correct_answers("true");
-        multiAnswer.setAnswers(Map.of("answer_a", "A", "answer_b", "B"));
-        multiAnswer.setCorrect_answers(Map.of("answer_a_correct", "true", "answer_b_correct", "true"));
+        QuizApiResponse.BrowseQuestion noCorrect = new QuizApiResponse.BrowseQuestion();
+        noCorrect.setText("Bad question?");
+        QuizApiResponse.Answer a1 = new QuizApiResponse.Answer();
+        a1.setText("A");
+        a1.setCorrect(false);
+        QuizApiResponse.Answer a2 = new QuizApiResponse.Answer();
+        a2.setText("B");
+        a2.setCorrect(false);
+        noCorrect.setAnswers(List.of(a1, a2));
 
-        QuizApiResponse singleAnswer = new QuizApiResponse();
-        singleAnswer.setQuestion("Single answer?");
-        singleAnswer.setMultiple_correct_answers("false");
-        singleAnswer.setAnswers(Map.of("answer_a", "A", "answer_b", "B"));
-        singleAnswer.setCorrect_answers(Map.of("answer_a_correct", "false", "answer_b_correct", "true"));
-        singleAnswer.setDifficulty("Medium");
+        QuizApiResponse.BrowseQuestion valid = createSimpleItem("Valid?", "Medium");
 
-        when(restClient.get()).thenReturn(requestHeadersUriSpec);
-        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(List.of(multiAnswer, singleAnswer));
+        QuizApiResponse response = new QuizApiResponse();
+        response.setSuccess(true);
+        response.setData(List.of(noCorrect, valid));
+
+        mockRestClient(response);
 
         // When
         List<Question> questions = provider.fetchQuestions(new QuestionProviderRequest(List.of(), 2));
 
         // Then
         assertEquals(1, questions.size());
-        assertEquals("Single answer?", questions.get(0).getText());
-        assertEquals(1, questions.get(0).getCorrectAnswerIndex());
+        assertEquals("Valid?", questions.get(0).getText());
     }
 
     @Test
     void shouldMapDifficultyCorrectly() {
         // Given
-        QuizApiResponse easy = createSimpleResponse("Easy");
-        QuizApiResponse medium = createSimpleResponse("Medium");
-        QuizApiResponse hard = createSimpleResponse("Hard");
+        QuizApiResponse response = new QuizApiResponse();
+        response.setSuccess(true);
+        response.setData(List.of(
+                createSimpleItem("Easy Q", "Easy"),
+                createSimpleItem("Medium Q", "Medium"),
+                createSimpleItem("Hard Q", "Hard")
+        ));
 
-        when(restClient.get()).thenReturn(requestHeadersUriSpec);
-        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
-        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
-        when(responseSpec.body(any(ParameterizedTypeReference.class))).thenReturn(List.of(easy, medium, hard));
+        mockRestClient(response);
 
         // When
         List<Question> questions = provider.fetchQuestions(new QuestionProviderRequest(List.of(), 3));
@@ -152,13 +145,27 @@ class QuizApiProviderTest {
                 () -> provider.fetchQuestions(new QuestionProviderRequest(List.of(), 1)));
     }
 
-    private QuizApiResponse createSimpleResponse(String difficulty) {
-        QuizApiResponse r = new QuizApiResponse();
-        r.setQuestion("Q?");
-        r.setMultiple_correct_answers("false");
-        r.setAnswers(Map.of("answer_a", "A", "answer_b", "B"));
-        r.setCorrect_answers(Map.of("answer_a_correct", "true", "answer_b_correct", "false"));
-        r.setDifficulty(difficulty);
-        return r;
+    private QuizApiResponse.BrowseQuestion createSimpleItem(String text, String difficulty) {
+        QuizApiResponse.BrowseQuestion item = new QuizApiResponse.BrowseQuestion();
+        item.setText(text);
+        item.setDifficulty(difficulty);
+
+        QuizApiResponse.Answer a1 = new QuizApiResponse.Answer();
+        a1.setText("A");
+        a1.setCorrect(true);
+        QuizApiResponse.Answer a2 = new QuizApiResponse.Answer();
+        a2.setText("B");
+        a2.setCorrect(false);
+        item.setAnswers(List.of(a1, a2));
+
+        return item;
+    }
+
+    private void mockRestClient(QuizApiResponse response) {
+        when(restClient.get()).thenReturn(requestHeadersUriSpec);
+        when(requestHeadersUriSpec.uri(anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.header(anyString(), anyString())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.body(QuizApiResponse.class)).thenReturn(response);
     }
 }
