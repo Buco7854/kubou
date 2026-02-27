@@ -53,7 +53,7 @@ Le projet s'articule autour de 8 features majeurs :
 * Import de questions depuis plusieurs sources externes : **Open Trivia DB** (anglais), **QuizzAPI** (français), **QuizAPI** (anglais tech/dev).
 * Sélection de la catégorie, du nombre de questions et de la langue cible.
 * Traduction automatique des questions si la langue source diffère de la langue cible.
-* Architecture extensible via le pattern *Provider Factory* permettant d'ajouter facilement de nouvelles sources.
+* Architecture extensible via le pattern *Strategy Pattern* permettant d'ajouter facilement de nouvelles sources.
 
 ### 8. 🤖 Création de Quiz par IA (OpenAI)
 * Génération automatique de questions à choix multiples à partir d'un texte libre grâce à l'API OpenAI.
