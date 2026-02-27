@@ -92,7 +92,6 @@ L'application utilise deux modes de communication distincts :
 *   `@SendTo` / `SimpMessagingTemplate` (Prefix `/topic`) : Message diffusé du **Serveur vers Tous les Clients** (Broadcast).
 *   `convertAndSendToUser` (Prefix `/user/queue`) : Message envoyé du **Serveur vers Un Client Spécifique** (Privé).
 
----
 
 ### 2. Scénario : Le Cycle de Vie d'une Partie (Game Loop)
 
@@ -143,8 +142,6 @@ Immédiatement après le calcul :
     *   *Contenu :* La bonne réponse est révélée.
 3.  **Serveur -> Clients** : Diffusion sur `/topic/game/{id}/leaderboard`.
     *   *Contenu :* Le classement mis à jour (Top 5) et, si le mode équipe est actif, le score des équipes agrégé.
-
----
 
 ### 3. Zoom sur les Fonctionnalités "Intelligentes"
 
